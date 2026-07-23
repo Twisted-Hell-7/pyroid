@@ -104,3 +104,15 @@ Thumbs.db
 # Project specific
 local.properties
 *.hprof
+
+# Graphify (generated files)
+graphify-out/
+
+# OpenCode
+.opencode/
+
+# Test files (not needed in production)
+app/src/test/
+app/src/androidTest/
+data/src/test/
+data/src/androidTest/
