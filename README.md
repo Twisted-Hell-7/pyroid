@@ -198,6 +198,65 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 
 **Memory Management**: The app monitors heap usage and triggers GC at 80% capacity. It detects low-RAM devices and adjusts behavior accordingly.
 
+## Python Package Compatibility
+
+Chaquopy bundles pre-built wheels for many popular packages. Add packages in `data/build.gradle.kts`:
+
+```kotlin
+chaquopy {
+    defaultConfig {
+        version = "3.11"
+        pip {
+            install("numpy")
+            install("requests")
+        }
+    }
+}
+```
+
+### Supported Packages
+
+| Category | Packages |
+|---|---|
+| **Data Science** | `numpy`, `pandas`, `scipy`, `matplotlib`, `seaborn`, `plotly` |
+| **Web/HTTP** | `requests`, `flask`, `django`, `fastapi`, `urllib3`, `httpx` |
+| **JSON/YAML** | `json` (stdlib), `pyyaml`, `orjson`, `ujson` |
+| **Text Processing** | `beautifulsoup4`, `lxml`, `html5lib`, `regex` |
+| **Date/Time** | `arrow`, `pendulum`, `python-dateutil` |
+| **Cryptography** | `cryptography`, `pyopenssl`, `bcrypt`, `pyjwt` |
+| **Database** | `sqlite3` (stdlib), `sqlalchemy` |
+| **Image Processing** | `pillow`, `opencv-python-headless` |
+| **Math/Science** | `sympy`, `networkx`, `statsmodels` |
+| **Testing** | `pytest`, `unittest` (stdlib), `mock` |
+| **CLI** | `click`, `argparse` (stdlib), `rich`, `colorama` |
+| **CSV/Data** | `csv` (stdlib), `openpyxl`, `xlrd` |
+| **Compression** | `zipfile` (stdlib), `gzip` (stdlib), `tarfile` (stdlib) |
+| **Hashing** | `hashlib` (stdlib), `hmac` (stdlib) |
+| **Regex** | `re` (stdlib), `regex` |
+| **Concurrency** | `threading` (stdlib, limited), `multiprocessing.dummy` |
+| **Standard Library** | Full stdlib support (see exceptions below) |
+
+### Unsupported Packages
+
+| Category | Packages | Reason |
+|---|---|---|
+| **GUI** | `tkinter`, `pygame`, `pyqt5/6`, `pyside2/6`, `kivy` | No X11/display server on Android |
+| **System** | `subprocess`, `os.fork`, `ctypes` (system libs) | Android sandbox restrictions |
+| **Multiprocessing** | `multiprocessing` (System V IPC) | No `sem_open` on Android -- use `multiprocessing.dummy` instead |
+| **Machine Learning** | `tensorflow`, `pytorch`, `jax` | No Android wheels in Chaquopy mirror (too large, complex native deps) |
+| **Heavy Native** | `opencv-python` (full), `mahotas`, `skimage` | Need custom native builds not available |
+| **SSH/Network** | `paramiko` (SSH), `fabric` | Needs native crypto bindings |
+| **GUI Backends** | `matplotlib` (GUI mode), `plotly` (rendering) | Use non-interactive backends (`Agg`) only |
+| **OS-level** | `signal` (limited), `curses`, `readline` | Android doesn't expose these APIs |
+
+### Tips
+
+- Use `multiprocessing.dummy` instead of `multiprocessing` for thread-based parallelism
+- `matplotlib` works but use `matplotlib.use('Agg')` before importing pyplot (no GUI display)
+- `subprocess` is completely unavailable -- use Chaquopy's Python API or rewrite logic in Kotlin
+- Pure Python packages almost always work; native C/C++ packages depend on Chaquopy's pre-built wheels
+- Check [Chaquopy package support](https://chaquo.com/chaquopy/doc/current/android.html#package-support) for the full compatibility list
+
 ## License
 
 This project is licensed under the MIT License -- see the [LICENSE](LICENSE) file for details.
