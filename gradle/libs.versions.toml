@@ -7,6 +7,9 @@ targetSdk = "35"
 ndkVersion = "27.2.12479018"
 kotlin = "2.1.0"
 
+# Python
+chaquopy = "17.0.0"
+
 # Core
 coreKtx = "1.15.0"
 lifecycleRuntime = "2.8.7"
@@ -102,3 +105,4 @@ kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", versi
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 ksp = { id = "com.google.devtools.ksp", version = "2.1.0-1.0.29" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
+chaquopy = { id = "com.chaquo.python", version.ref = "chaquopy" }
