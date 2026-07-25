@@ -1,6 +1,5 @@
 package com.pythonide.data.editor.highlight
 
-import androidx.compose.ui.graphics.Color
 import com.pythonide.domain.model.editor.EditorTheme
 
 data class SyntaxToken(
@@ -185,24 +184,24 @@ class PythonSyntaxHighlighter(private val theme: EditorTheme = EditorTheme.DEFAU
         return i
     }
 
-    fun getColorForToken(type: TokenType): Color {
+    fun getColorForToken(type: TokenType): Long {
         return when (type) {
-            TokenType.KEYWORD -> theme.keywordColor
-            TokenType.STRING -> theme.stringColor
-            TokenType.NUMBER -> theme.numberColor
-            TokenType.COMMENT -> theme.commentColor
-            TokenType.FUNCTION -> theme.functionColor
-            TokenType.CLASS_NAME -> theme.classNameColor
-            TokenType.OPERATOR -> theme.operatorColor
-            TokenType.PUNCTUATION -> theme.punctuationColor
-            TokenType.BUILTIN -> theme.builtinColor
-            TokenType.DECORATOR -> theme.decoratorColor
-            TokenType.WHITESPACE -> theme.foreground
-            TokenType.TEXT -> theme.foreground
+            TokenType.KEYWORD -> theme.keywordArgb
+            TokenType.STRING -> theme.stringArgb
+            TokenType.NUMBER -> theme.numberArgb
+            TokenType.COMMENT -> theme.commentArgb
+            TokenType.FUNCTION -> theme.functionArgb
+            TokenType.CLASS_NAME -> theme.classNameArgb
+            TokenType.OPERATOR -> theme.operatorArgb
+            TokenType.PUNCTUATION -> theme.punctuationArgb
+            TokenType.BUILTIN -> theme.builtinArgb
+            TokenType.DECORATOR -> theme.decoratorArgb
+            TokenType.WHITESPACE -> theme.foregroundArgb
+            TokenType.TEXT -> theme.foregroundArgb
         }
     }
 
-    fun highlightLine(line: String): List<Pair<String, Color>> {
+    fun highlightLine(line: String): List<Pair<String, Long>> {
         return highlight(line).map { token ->
             token.text to getColorForToken(token.type)
         }

@@ -77,4 +77,10 @@ interface PackageManagerRepository {
     suspend fun getAvailableAbis(): List<String>
     suspend fun getCompatiblePackages(): Flow<List<Package>>
     suspend fun getIncompatiblePackages(): Flow<List<Package>>
+
+    suspend fun exportRequirements(): Result<String>
+    suspend fun importRequirements(content: String): Result<Unit>
+    suspend fun installFromRequirements(requirementsContent: String): Result<Unit>
+    suspend fun freezePackages(): Result<String>
+    suspend fun getInstalledPackageVersions(packageName: String): Result<List<String>>
 }

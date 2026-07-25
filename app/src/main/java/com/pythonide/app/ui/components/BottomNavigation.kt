@@ -8,12 +8,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Package
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Folder
-import androidx.compose.material.icons.outlined.Package
+import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Badge
@@ -52,7 +52,7 @@ fun AppBottomNavigation(
         BottomNavItem("home", "Home", Icons.Filled.Code, Icons.Outlined.Code),
         BottomNavItem("filemanager", "Files", Icons.Filled.Folder, Icons.Outlined.Folder),
         BottomNavItem("terminal", "Terminal", Icons.Filled.PlayArrow, Icons.Outlined.PlayArrow),
-        BottomNavItem("packages", "Packages", Icons.Filled.Package, Icons.Outlined.Package),
+        BottomNavItem("packages", "Packages", Icons.Filled.GridView, Icons.Outlined.GridView),
         BottomNavItem("settings", "Settings", Icons.Filled.Settings, Icons.Outlined.Settings),
     )
 
@@ -105,14 +105,13 @@ fun AppNavigationRail(
         BottomNavItem("home", "Home", Icons.Filled.Code, Icons.Outlined.Code),
         BottomNavItem("filemanager", "Files", Icons.Filled.Folder, Icons.Outlined.Folder),
         BottomNavItem("terminal", "Terminal", Icons.Filled.PlayArrow, Icons.Outlined.PlayArrow),
-        BottomNavItem("packages", "Packages", Icons.Filled.Package, Icons.Outlined.Package),
+        BottomNavItem("packages", "Packages", Icons.Filled.GridView, Icons.Outlined.GridView),
         BottomNavItem("settings", "Settings", Icons.Filled.Settings, Icons.Outlined.Settings),
     )
 
     androidx.compose.material3.NavigationRail(
         modifier = modifier,
-        containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 8.dp
+        containerColor = MaterialTheme.colorScheme.surface
     ) {
         items.forEach { item ->
             val isSelected = currentRoute == item.route

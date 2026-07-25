@@ -18,7 +18,6 @@ import com.pythonide.domain.model.project.Project
 import com.pythonide.domain.model.project.ProjectBackup
 import com.pythonide.domain.model.project.ProjectMetadata
 import com.pythonide.domain.model.project.ProjectSession
-import com.pythonide.domain.model.project.ProjectStats
 import com.pythonide.domain.model.project.ProjectTemplate
 import com.pythonide.domain.model.project.SaveResult
 import com.pythonide.domain.model.project.ScrollPosition
@@ -28,12 +27,14 @@ import com.pythonide.domain.model.project.TemplateCategory
 import com.pythonide.domain.model.project.TemplateFile
 import com.pythonide.domain.model.project.TemplateIcon
 import com.pythonide.domain.repository.ProjectRepository
+import com.pythonide.domain.repository.ProjectStats
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -82,8 +83,8 @@ class ProjectRepositoryImpl @Inject constructor(
                     TemplateFile("main.py", "#!/usr/bin/env python3\n\nif __name__ == '__main__':\n    print('Hello, World!')\n"),
                     TemplateFile("requirements.txt", "# Add your dependencies here\n")
                 ),
-                directories = ["src", "tests"],
-                gitignoreContent = "__pycache__/\n*.py[cod]\n*$py.class\n.env\nvenv/\n.venv/\n",
+                directories = listOf("src", "tests"),
+                gitignoreContent = "__pycache__/\n*.py[cod]\n*\$py.class\n.env\nvenv/\n.venv/\n",
                 isBuiltIn = true
             ),
             ProjectTemplate(
@@ -97,7 +98,7 @@ class ProjectRepositoryImpl @Inject constructor(
                     TemplateFile("requirements.txt", "# Add your dependencies here\n"),
                     TemplateFile("setup.py", "from setuptools import setup, find_packages\n\nsetup(\n    name='my_console_app',\n    version='1.0.0',\n    packages=find_packages(),\n    entry_points={\n        'console_scripts': [\n            'my-app=main:main',\n        ],\n    },\n)\n")
                 ),
-                directories = ["src", "tests", "docs"],
+                directories = listOf("src", "tests", "docs"),
                 gitignoreContent = "__pycache__/\n*.py[cod]\n*.egg-info/\ndist/\nbuild/\n",
                 isBuiltIn = true
             ),
@@ -112,7 +113,7 @@ class ProjectRepositoryImpl @Inject constructor(
                     TemplateFile("requirements.txt", "flask>=2.3.0\njinja2>=3.1.0\n"),
                     TemplateFile("config.py", "import os\n\nclass Config:\n    SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key'\n    DEBUG = False\n\nclass DevelopmentConfig(Config):\n    DEBUG = True\n\nclass ProductionConfig(Config):\n    DEBUG = False\n\nconfig = {\n    'development': DevelopmentConfig,\n    'production': ProductionConfig,\n    'default': DevelopmentConfig\n}\n")
                 ),
-                directories = ["templates", "static/css", "static/js", "static/images", "tests"],
+                directories = listOf("templates", "static/css", "static/js", "static/images", "tests"),
                 gitignoreContent = "__pycache__/\n*.py[cod]\n.env\nvenv/\ninstance/\n*.db\n",
                 isBuiltIn = true
             ),
@@ -128,7 +129,7 @@ class ProjectRepositoryImpl @Inject constructor(
                     TemplateFile("requirements.txt", "pandas>=2.0.0\nnumpy>=1.24.0\njupyter>=1.0.0\nmatplotlib>=3.7.0\nseaborn>=0.12.0\nscikit-learn>=1.3.0\n"),
                     TemplateFile("setup.py", "from setuptools import setup, find_packages\n\nsetup(\n    name='data_science_project',\n    version='1.0.0',\n    packages=find_packages(),\n)\n")
                 ),
-                directories = ["data/raw", "data/processed", "notebooks", "src", "models", "reports/figures"],
+                directories = listOf("data/raw", "data/processed", "notebooks", "src", "models", "reports/figures"),
                 gitignoreContent = "__pycache__/\n*.py[cod]\n.ipynb_checkpoints/\n*.h5\n*.pkl\nvenv/\n",
                 isBuiltIn = true
             ),
@@ -143,7 +144,7 @@ class ProjectRepositoryImpl @Inject constructor(
                     TemplateFile("requirements.txt", "pygame>=2.5.0\n"),
                     TemplateFile("src/game.py", "class Game:\n    def __init__(self):\n        self.running = True\n    \n    def handle_events(self, events):\n        pass\n    \n    def update(self):\n        pass\n    \n    def render(self, screen):\n        pass\n")
                 ),
-                directories = ["src", "assets/images", "assets/sounds", "assets/fonts", "tests"],
+                directories = listOf("src", "assets/images", "assets/sounds", "assets/fonts", "tests"),
                 gitignoreContent = "__pycache__/\n*.py[cod]\nvenv/\nbuild/\ndist/\n",
                 isBuiltIn = true
             ),
@@ -159,7 +160,7 @@ class ProjectRepositoryImpl @Inject constructor(
                     TemplateFile("config.py", "from pydantic_settings import BaseSettings\n\nclass Settings(BaseSettings):\n    app_name: str = 'My API'\n    debug: bool = False\n    database_url: str = 'sqlite:///./app.db'\n    \n    class Config:\n        env_file = '.env'\n\nsettings = Settings()\n"),
                     TemplateFile("routers/items.py", "from fastapi import APIRouter\n\nrouter = APIRouter()\n\n@router.get('/items/')\nasync def read_items():\n    return [{'name': 'Foo'}]\n\n@router.get('/items/{item_id}')\nasync def read_item(item_id: int):\n    return {'item_id': item_id}\n")
                 ),
-                directories = ["routers", "models", "schemas", "services", "tests"],
+                directories = listOf("routers", "models", "schemas", "services", "tests"),
                 gitignoreContent = "__pycache__/\n*.py[cod]\n.env\nvenv/\n*.db\n",
                 isBuiltIn = true
             ),
@@ -174,7 +175,7 @@ class ProjectRepositoryImpl @Inject constructor(
                     TemplateFile("requirements.txt", "# Add your dependencies here\nschedule>=1.2.0\nrequests>=2.31.0\n"),
                     TemplateFile("tasks/file_manager.py", "import os\nimport shutil\nfrom pathlib import Path\n\ndef organize_files(directory: str):\n    \"\"\"Organize files by extension.\"\"\"\n    for file in Path(directory).iterdir():\n        if file.is_file():\n            ext = file.suffix[1:].lower()\n            dest = Path(directory) / ext\n            dest.mkdir(exist_ok=True)\n            shutil.move(str(file), str(dest / file.name))\n")
                 ),
-                directories = ["tasks", "config", "logs", "tests"],
+                directories = listOf("tasks", "config", "logs", "tests"),
                 gitignoreContent = "__pycache__/\n*.py[cod]\n.env\nvenv/\nlogs/\n",
                 isBuiltIn = true
             ),
@@ -190,7 +191,7 @@ class ProjectRepositoryImpl @Inject constructor(
                     TemplateFile("requirements.txt", "pytest>=7.4.0\npytest-cov>=4.1.0\n"),
                     TemplateFile("pytest.ini", "[pytest]\ntestpaths = tests\npython_files = test_*.py\npython_functions = test_*\naddopts = -v --cov=src\n")
                 ),
-                directories = ["src", "tests", "tests/fixtures"],
+                directories = listOf("src", "tests", "tests/fixtures"),
                 gitignoreContent = "__pycache__/\n*.py[cod]\n.pytest_cache/\n.coverage\nhtmlcov/\nvenv/\n",
                 isBuiltIn = true
             )
@@ -217,23 +218,23 @@ class ProjectRepositoryImpl @Inject constructor(
 
     override fun getProjects(): Flow<List<Project>> {
         return projectDao.getAllProjects().map { entities ->
-            entities.map { it.toDomain() }
+            entities.map { projectEntityToDomain(it) }
         }
     }
 
     override fun getProjectById(id: String): Flow<Project?> {
-        return projectDao.getProjectById(id).map { it?.toDomain() }
+        return projectDao.getProjectById(id).map { it?.let { entity -> projectEntityToDomain(entity) } }
     }
 
     override fun getRecentProjects(): Flow<List<Project>> {
         return projectDao.getRecentProjects().map { entities ->
-            entities.map { it.toDomain() }
+            entities.map { projectEntityToDomain(it) }
         }
     }
 
     override fun getFavoriteProjects(): Flow<List<Project>> {
         return projectDao.getFavoriteProjects().map { entities ->
-            entities.map { it.toDomain() }
+            entities.map { projectEntityToDomain(it) }
         }
     }
 
@@ -264,13 +265,13 @@ class ProjectRepositoryImpl @Inject constructor(
             )
 
             if (templateId != null) {
-                val template = templateDao.getTemplateById(templateId)
+                val template = templateDao.getTemplateById(templateId).firstOrNull()
                 if (template != null) {
-                    applyTemplate(projectDir, template.toDomain())
+                    applyTemplate(projectDir, templateEntityToDomain(template))
                 }
             }
 
-            val entity = project.toEntity()
+            val entity = projectToEntity(project)
             projectDao.insertProject(entity)
 
             Result.success(project)
@@ -307,17 +308,13 @@ class ProjectRepositoryImpl @Inject constructor(
 
     override suspend fun openProject(projectId: String): Result<Project> = withContext(Dispatchers.IO) {
         try {
-            val project = projectDao.getProjectById(projectId).map { it?.toDomain() }
-            val projectValue = project as? kotlinx.coroutines.flow.MutableStateFlow
-            val projectData = projectDao.getProjectById(projectId)
-
             val entity = projectDao.getProjectById(projectId).firstOrNull()
                 ?: return@withContext Result.failure(Exception("Project not found"))
 
             val updatedEntity = entity.copy(lastAccessedAt = System.currentTimeMillis())
             projectDao.updateProject(updatedEntity)
 
-            Result.success(updatedEntity.toDomain())
+            Result.success(projectEntityToDomain(updatedEntity))
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -394,7 +391,7 @@ class ProjectRepositoryImpl @Inject constructor(
             )
             projectDao.updateProject(updatedProject)
 
-            Result.success(updatedProject.toDomain())
+            Result.success(projectEntityToDomain(updatedProject))
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -403,7 +400,7 @@ class ProjectRepositoryImpl @Inject constructor(
     override suspend fun updateProject(project: Project): Result<Project> = withContext(Dispatchers.IO) {
         try {
             val updatedProject = project.copy(lastAccessedAt = System.currentTimeMillis())
-            projectDao.updateProject(updatedProject.toEntity())
+            projectDao.updateProject(projectToEntity(updatedProject))
             Result.success(updatedProject)
         } catch (e: Exception) {
             Result.failure(e)
@@ -415,11 +412,11 @@ class ProjectRepositoryImpl @Inject constructor(
             val project = projectDao.getProjectById(projectId).firstOrNull()
                 ?: return@withContext Result.failure(Exception("Project not found"))
 
-            val updatedProject = project.toDomain().copy(
+            val updatedProject = projectEntityToDomain(project).copy(
                 metadata = metadata,
                 lastAccessedAt = System.currentTimeMillis()
             )
-            projectDao.updateProject(updatedProject.toEntity())
+            projectDao.updateProject(projectToEntity(updatedProject))
 
             Result.success(updatedProject)
         } catch (e: Exception) {
@@ -441,7 +438,7 @@ class ProjectRepositoryImpl @Inject constructor(
             )
             projectDao.updateProject(updatedProject)
 
-            Result.success(updatedProject.toDomain())
+            Result.success(projectEntityToDomain(updatedProject))
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -463,7 +460,7 @@ class ProjectRepositoryImpl @Inject constructor(
             )
             projectDao.updateProject(updatedProject)
 
-            Result.success(updatedProject.toDomain())
+            Result.success(projectEntityToDomain(updatedProject))
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -483,7 +480,7 @@ class ProjectRepositoryImpl @Inject constructor(
             )
             projectDao.updateProject(updatedProject)
 
-            Result.success(updatedProject.toDomain())
+            Result.success(projectEntityToDomain(updatedProject))
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -506,13 +503,13 @@ class ProjectRepositoryImpl @Inject constructor(
             }
 
             val stats = calculateProjectStats(projectDir)
-            val updatedProject = project.toDomain().copy(
+            val updatedProject = projectEntityToDomain(project).copy(
                 lastSavedAt = System.currentTimeMillis(),
                 lastAccessedAt = System.currentTimeMillis(),
                 fileCount = stats.totalFiles,
                 totalSize = stats.totalSize
             )
-            projectDao.updateProject(updatedProject.toEntity())
+            projectDao.updateProject(projectToEntity(updatedProject))
 
             Result.success(SaveResult.SUCCESS)
         } catch (e: Exception) {
@@ -540,11 +537,11 @@ class ProjectRepositoryImpl @Inject constructor(
                 rootPath = destDir.absolutePath,
                 description = project.description,
                 templateId = project.templateId,
-                metadata = project.toDomain().metadata,
-                tags = project.toDomain().tags
+                metadata = projectEntityToDomain(project).metadata,
+                tags = projectEntityToDomain(project).tags
             )
 
-            projectDao.insertProject(newProject.toEntity())
+            projectDao.insertProject(projectToEntity(newProject))
 
             Result.success(newProject)
         } catch (e: Exception) {
@@ -567,14 +564,14 @@ class ProjectRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun getTemplates(): Flow<List<ProjectTemplate>> {
+    override suspend fun getTemplates(): Flow<List<ProjectTemplate>> {
         return templateDao.getAllTemplates().map { entities ->
-            entities.map { it.toDomain() }
+            entities.map { templateEntityToDomain(it) }
         }
     }
 
     override suspend fun getTemplateById(templateId: String): ProjectTemplate? {
-        return templateDao.getTemplateById(templateId)?.toDomain()
+        return templateDao.getTemplateById(templateId).firstOrNull()?.let { templateEntityToDomain(it) }
     }
 
     override suspend fun createProjectFromTemplate(
@@ -583,8 +580,9 @@ class ProjectRepositoryImpl @Inject constructor(
         destinationPath: String
     ): Result<Project> = withContext(Dispatchers.IO) {
         try {
-            val template = templateDao.getTemplateById(templateId)?.toDomain()
+            val templateEntity = templateDao.getTemplateById(templateId).firstOrNull()
                 ?: return@withContext Result.failure(Exception("Template not found"))
+            val template = templateEntityToDomain(templateEntity)
 
             val projectDir = File(destinationPath, projectName)
             if (projectDir.exists()) {
@@ -602,7 +600,7 @@ class ProjectRepositoryImpl @Inject constructor(
                 metadata = ProjectMetadata()
             )
 
-            projectDao.insertProject(project.toEntity())
+            projectDao.insertProject(projectToEntity(project))
 
             Result.success(project)
         } catch (e: Exception) {
@@ -612,12 +610,12 @@ class ProjectRepositoryImpl @Inject constructor(
 
     override suspend fun addCustomTemplate(template: ProjectTemplate): Result<ProjectTemplate> = withContext(Dispatchers.IO) {
         try {
-            val entity = template.copy(
+            val entity = templateToEntity(template.copy(
                 id = UUID.randomUUID().toString(),
                 isBuiltIn = false
-            ).toEntity()
+            ))
             templateDao.insertTemplate(entity)
-            Result.success(entity.toDomain())
+            Result.success(templateEntityToDomain(entity))
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -625,8 +623,9 @@ class ProjectRepositoryImpl @Inject constructor(
 
     override suspend fun deleteTemplate(templateId: String): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
-            val template = templateDao.getTemplateById(templateId)?.toDomain()
+            val templateEntity = templateDao.getTemplateById(templateId).firstOrNull()
                 ?: return@withContext Result.failure(Exception("Template not found"))
+            val template = templateEntityToDomain(templateEntity)
 
             if (template.isBuiltIn) {
                 return@withContext Result.failure(Exception("Cannot delete built-in template"))
@@ -641,13 +640,13 @@ class ProjectRepositoryImpl @Inject constructor(
 
     override suspend fun getSession(projectId: String): Flow<ProjectSession?> {
         return sessionDao.getSession(projectId).map { entity ->
-            entity?.toDomain()
+            entity?.let { sessionEntityToDomain(it) }
         }
     }
 
     override suspend fun saveSession(session: ProjectSession): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
-            sessionDao.insertSession(session.toEntity())
+            sessionDao.insertSession(sessionToEntity(session))
             Result.success(true)
         } catch (e: Exception) {
             Result.failure(e)
@@ -659,7 +658,8 @@ class ProjectRepositoryImpl @Inject constructor(
             val session = sessionDao.getSession(projectId).firstOrNull()
                 ?: return@withContext Result.failure(Exception("Session not found"))
 
-            val updatedFiles = session.openFiles.map { file ->
+            val openFiles = deserializeSessionFiles(session.openFiles).toMutableList()
+            val updatedFiles = openFiles.map { file ->
                 if (file.fileId == fileId) {
                     file.copy(isModified = isModified)
                 } else {
@@ -752,7 +752,7 @@ class ProjectRepositoryImpl @Inject constructor(
             val lastSession = projectDao.getRecentProjects(1).firstOrNull()?.firstOrNull()
             if (lastSession != null) {
                 val session = sessionDao.getSession(lastSession.id).firstOrNull()
-                Result.success(session?.toDomain())
+                Result.success(session?.let { sessionEntityToDomain(it) })
             } else {
                 Result.success(null)
             }
@@ -763,13 +763,13 @@ class ProjectRepositoryImpl @Inject constructor(
 
     override suspend fun getAutoSaveConfig(): Flow<AutoSaveConfig> {
         return autoSaveConfigDao.getConfig().map { entity ->
-            entity?.toDomain() ?: AutoSaveConfig()
+            entity?.let { autoSaveConfigEntityToDomain(it) } ?: AutoSaveConfig()
         }
     }
 
     override suspend fun updateAutoSaveConfig(config: AutoSaveConfig): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
-            val entity = config.toEntity()
+            val entity = autoSaveConfigToEntity(config)
             autoSaveConfigDao.insertConfig(entity)
             Result.success(true)
         } catch (e: Exception) {
@@ -779,7 +779,8 @@ class ProjectRepositoryImpl @Inject constructor(
 
     override suspend fun performAutoSave(projectId: String): Result<SaveResult> = withContext(Dispatchers.IO) {
         try {
-            val config = autoSaveConfigDao.getConfig()?.toDomain() ?: AutoSaveConfig()
+            val configEntity = autoSaveConfigDao.getConfig().firstOrNull()
+            val config = configEntity?.let { autoSaveConfigEntityToDomain(it) } ?: AutoSaveConfig()
             if (!config.enabled) {
                 return@withContext Result.success(SaveResult.SUCCESS)
             }
@@ -816,7 +817,7 @@ class ProjectRepositoryImpl @Inject constructor(
                 description = description
             )
 
-            backupDao.insertBackup(backup.toEntity())
+            backupDao.insertBackup(backupToEntity(backup))
 
             Result.success(backup)
         } catch (e: Exception) {
@@ -826,7 +827,7 @@ class ProjectRepositoryImpl @Inject constructor(
 
     override suspend fun getBackups(projectId: String): Flow<List<ProjectBackup>> {
         return backupDao.getBackups(projectId).map { entities ->
-            entities.map { it.toDomain() }
+            entities.map { backupEntityToDomain(it) }
         }
     }
 
@@ -853,7 +854,7 @@ class ProjectRepositoryImpl @Inject constructor(
                 lastSavedAt = System.currentTimeMillis()
             )
 
-            projectDao.insertProject(project.toEntity())
+            projectDao.insertProject(projectToEntity(project))
 
             Result.success(project)
         } catch (e: Exception) {
@@ -916,7 +917,7 @@ class ProjectRepositoryImpl @Inject constructor(
                 size = destFile.length()
             )
 
-            backupDao.insertBackup(backup.toEntity())
+            backupDao.insertBackup(backupToEntity(backup))
 
             Result.success(backup)
         } catch (e: Exception) {
@@ -1109,156 +1110,156 @@ class ProjectRepositoryImpl @Inject constructor(
         )
     }
 
-    private fun ProjectEntity.toDomain() = Project(
-        id = id,
-        name = name,
-        rootPath = rootPath,
-        description = description,
-        templateId = templateId,
-        createdAt = createdAt,
-        lastAccessedAt = lastAccessedAt,
-        lastSavedAt = lastSavedAt,
-        isFavorite = isFavorite,
-        fileCount = fileCount,
-        totalSize = totalSize,
+    private fun projectEntityToDomain(entity: ProjectEntity) = Project(
+        id = entity.id,
+        name = entity.name,
+        rootPath = entity.rootPath,
+        description = entity.description,
+        templateId = entity.templateId,
+        createdAt = entity.createdAt,
+        lastAccessedAt = entity.lastAccessedAt,
+        lastSavedAt = entity.lastSavedAt,
+        isFavorite = entity.isFavorite,
+        fileCount = entity.fileCount,
+        totalSize = entity.totalSize,
         metadata = ProjectMetadata(
-            pythonVersion = pythonVersion,
-            interpreterPath = interpreterPath,
-            author = author,
-            version = version,
-            license = license,
-            dependencies = dependencies.split(",").filter { it.isNotEmpty() },
-            gitRepository = gitRepository,
-            customProperties = deserializeCustomProperties(customProperties)
+            pythonVersion = entity.pythonVersion,
+            interpreterPath = entity.interpreterPath,
+            author = entity.author,
+            version = entity.version,
+            license = entity.license,
+            dependencies = entity.dependencies.split(",").filter { it.isNotEmpty() },
+            gitRepository = entity.gitRepository,
+            customProperties = deserializeCustomProperties(entity.customProperties)
         ),
-        tags = tags.split(",").filter { it.isNotEmpty() }
+        tags = entity.tags.split(",").filter { it.isNotEmpty() }
     )
 
-    private fun Project.toEntity() = ProjectEntity(
-        id = id,
-        name = name,
-        rootPath = rootPath,
-        description = description,
-        templateId = templateId,
-        createdAt = createdAt,
-        lastAccessedAt = lastAccessedAt,
-        lastSavedAt = lastSavedAt,
-        isFavorite = isFavorite,
-        fileCount = fileCount,
-        totalSize = totalSize,
-        tags = tags.joinToString(","),
-        pythonVersion = metadata.pythonVersion,
-        interpreterPath = metadata.interpreterPath,
-        author = metadata.author,
-        version = metadata.version,
-        license = metadata.license,
-        dependencies = metadata.dependencies.joinToString(","),
-        gitRepository = metadata.gitRepository,
-        customProperties = serializeCustomProperties(metadata.customProperties)
+    private fun projectToEntity(project: Project) = ProjectEntity(
+        id = project.id,
+        name = project.name,
+        rootPath = project.rootPath,
+        description = project.description,
+        templateId = project.templateId,
+        createdAt = project.createdAt,
+        lastAccessedAt = project.lastAccessedAt,
+        lastSavedAt = project.lastSavedAt,
+        isFavorite = project.isFavorite,
+        fileCount = project.fileCount,
+        totalSize = project.totalSize,
+        tags = project.tags.joinToString(","),
+        pythonVersion = project.metadata.pythonVersion,
+        interpreterPath = project.metadata.interpreterPath,
+        author = project.metadata.author,
+        version = project.metadata.version,
+        license = project.metadata.license,
+        dependencies = project.metadata.dependencies.joinToString(","),
+        gitRepository = project.metadata.gitRepository,
+        customProperties = serializeCustomProperties(project.metadata.customProperties)
     )
 
-    private fun ProjectTemplateEntity.toDomain() = ProjectTemplate(
-        id = id,
-        name = name,
-        description = description,
-        category = try { TemplateCategory.valueOf(category) } catch (_: Exception) { TemplateCategory.CUSTOM },
-        icon = try { TemplateIcon.valueOf(icon) } catch (_: Exception) { TemplateIcon.DEFAULT },
-        files = deserializeTemplateFiles(files),
+    private fun templateEntityToDomain(entity: ProjectTemplateEntity) = ProjectTemplate(
+        id = entity.id,
+        name = entity.name,
+        description = entity.description,
+        category = try { TemplateCategory.valueOf(entity.category) } catch (_: Exception) { TemplateCategory.CUSTOM },
+        icon = try { TemplateIcon.valueOf(entity.icon) } catch (_: Exception) { TemplateIcon.DEFAULT },
+        files = deserializeTemplateFiles(entity.files),
         directories = try {
-            val array = JSONArray(directories)
+            val array = JSONArray(entity.directories)
             (0 until array.length()).map { array.getString(it) }
         } catch (_: Exception) { emptyList() },
-        gitignoreContent = gitignoreContent,
-        requirementsContent = requirementsContent,
-        isBuiltIn = isBuiltIn
+        gitignoreContent = entity.gitignoreContent,
+        requirementsContent = entity.requirementsContent,
+        isBuiltIn = entity.isBuiltIn
     )
 
-    private fun ProjectTemplate.toEntity() = ProjectTemplateEntity(
-        id = id,
-        name = name,
-        description = description,
-        category = category.name,
-        icon = icon.name,
-        files = serializeTemplateFiles(files),
-        directories = JSONArray(directories).toString(),
-        gitignoreContent = gitignoreContent,
-        requirementsContent = requirementsContent,
-        isBuiltIn = isBuiltIn
+    private fun templateToEntity(template: ProjectTemplate) = ProjectTemplateEntity(
+        id = template.id,
+        name = template.name,
+        description = template.description,
+        category = template.category.name,
+        icon = template.icon.name,
+        files = serializeTemplateFiles(template.files),
+        directories = JSONArray(template.directories).toString(),
+        gitignoreContent = template.gitignoreContent,
+        requirementsContent = template.requirementsContent,
+        isBuiltIn = template.isBuiltIn
     )
 
-    private fun ProjectSessionEntity.toDomain() = ProjectSession(
-        projectId = projectId,
-        openFiles = deserializeSessionFiles(openFiles),
-        activeFileId = activeFileId,
+    private fun sessionEntityToDomain(entity: ProjectSessionEntity) = ProjectSession(
+        projectId = entity.projectId,
+        openFiles = deserializeSessionFiles(entity.openFiles),
+        activeFileId = entity.activeFileId,
         cursorPositions = try {
-            val jsonObject = JSONObject(cursorPositions)
+            val jsonObject = JSONObject(entity.cursorPositions)
             jsonObject.keys().asSequence().associateWith { key ->
                 deserializeCursorPosition(jsonObject.getString(key))
             }
         } catch (_: Exception) { emptyMap() },
         scrollPositions = try {
-            val jsonObject = JSONObject(scrollPositions)
+            val jsonObject = JSONObject(entity.scrollPositions)
             jsonObject.keys().asSequence().associateWith { key ->
                 deserializeScrollPosition(jsonObject.getString(key))
             }
         } catch (_: Exception) { emptyMap() },
-        splitLayout = try { SplitLayout.valueOf(splitLayout) } catch (_: Exception) { SplitLayout.NONE },
+        splitLayout = try { SplitLayout.valueOf(entity.splitLayout) } catch (_: Exception) { SplitLayout.NONE },
         terminalHistory = try {
-            val array = JSONArray(terminalHistory)
+            val array = JSONArray(entity.terminalHistory)
             (0 until array.length()).map { array.getString(it) }
         } catch (_: Exception) { emptyList() },
-        lastSavedAt = lastSavedAt,
-        createdAt = createdAt
+        lastSavedAt = entity.lastSavedAt,
+        createdAt = entity.createdAt
     )
 
-    private fun ProjectSession.toEntity() = ProjectSessionEntity(
-        projectId = projectId,
-        openFiles = serializeSessionFiles(openFiles),
-        activeFileId = activeFileId,
-        cursorPositions = JSONObject(cursorPositions.mapValues { serializeCursorPosition(it.value) }).toString(),
-        scrollPositions = JSONObject(scrollPositions.mapValues { serializeScrollPosition(it.value) }).toString(),
-        splitLayout = splitLayout.name,
-        terminalHistory = JSONArray(terminalHistory).toString(),
-        lastSavedAt = lastSavedAt,
-        createdAt = createdAt
+    private fun sessionToEntity(session: ProjectSession) = ProjectSessionEntity(
+        projectId = session.projectId,
+        openFiles = serializeSessionFiles(session.openFiles),
+        activeFileId = session.activeFileId,
+        cursorPositions = JSONObject(session.cursorPositions.mapValues { serializeCursorPosition(it.value) }).toString(),
+        scrollPositions = JSONObject(session.scrollPositions.mapValues { serializeScrollPosition(it.value) }).toString(),
+        splitLayout = session.splitLayout.name,
+        terminalHistory = JSONArray(session.terminalHistory).toString(),
+        lastSavedAt = session.lastSavedAt,
+        createdAt = session.createdAt
     )
 
-    private fun ProjectBackupEntity.toDomain() = ProjectBackup(
-        id = id,
-        projectId = projectId,
-        projectName = projectName,
-        backupPath = backupPath,
-        createdAt = createdAt,
-        size = size,
-        fileCount = fileCount,
-        description = description
+    private fun backupEntityToDomain(entity: ProjectBackupEntity) = ProjectBackup(
+        id = entity.id,
+        projectId = entity.projectId,
+        projectName = entity.projectName,
+        backupPath = entity.backupPath,
+        createdAt = entity.createdAt,
+        size = entity.size,
+        fileCount = entity.fileCount,
+        description = entity.description
     )
 
-    private fun ProjectBackup.toEntity() = ProjectBackupEntity(
-        id = id,
-        projectId = projectId,
-        projectName = projectName,
-        backupPath = backupPath,
-        createdAt = createdAt,
-        size = size,
-        fileCount = fileCount,
-        description = description
+    private fun backupToEntity(backup: ProjectBackup) = ProjectBackupEntity(
+        id = backup.id,
+        projectId = backup.projectId,
+        projectName = backup.projectName,
+        backupPath = backup.backupPath,
+        createdAt = backup.createdAt,
+        size = backup.size,
+        fileCount = backup.fileCount,
+        description = backup.description
     )
 
-    private fun AutoSaveConfigEntity.toDomain() = AutoSaveConfig(
-        enabled = enabled,
-        intervalMs = intervalMs,
-        saveOnClose = saveOnClose,
-        saveOnSwitch = saveOnSwitch,
-        maxAutoSaves = maxAutoSaves
+    private fun autoSaveConfigEntityToDomain(entity: AutoSaveConfigEntity) = AutoSaveConfig(
+        enabled = entity.enabled,
+        intervalMs = entity.intervalMs,
+        saveOnClose = entity.saveOnClose,
+        saveOnSwitch = entity.saveOnSwitch,
+        maxAutoSaves = entity.maxAutoSaves
     )
 
-    private fun AutoSaveConfig.toEntity() = AutoSaveConfigEntity(
-        enabled = enabled,
-        intervalMs = intervalMs,
-        saveOnClose = saveOnClose,
-        saveOnSwitch = saveOnSwitch,
-        maxAutoSaves = maxAutoSaves
+    private fun autoSaveConfigToEntity(config: AutoSaveConfig) = AutoSaveConfigEntity(
+        enabled = config.enabled,
+        intervalMs = config.intervalMs,
+        saveOnClose = config.saveOnClose,
+        saveOnSwitch = config.saveOnSwitch,
+        maxAutoSaves = config.maxAutoSaves
     )
 
     private fun serializeCustomProperties(properties: Map<String, String>): String {

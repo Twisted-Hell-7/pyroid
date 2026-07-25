@@ -2,12 +2,6 @@ package com.pythonide.app.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,7 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.Package
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.DrawerValue
@@ -77,7 +71,7 @@ fun AppNavigationDrawer(
         DrawerItem("filemanager", "File Manager", Icons.Default.Folder, currentRoute == "filemanager"),
         DrawerItem("terminal", "Terminal", Icons.Default.FolderOpen, currentRoute == "terminal"),
         DrawerItem("projects", "Projects", Icons.Default.FolderOpen, currentRoute == "projects"),
-        DrawerItem("packages", "Packages", Icons.Default.Package, currentRoute == "packages"),
+        DrawerItem("packages", "Packages", Icons.Default.GridView, currentRoute == "packages"),
         DrawerItem("settings", "Settings", Icons.Default.Settings, currentRoute == "settings"),
     )
 
@@ -154,21 +148,5 @@ fun AppNavigationDrawer(
 }
 
 fun Modifier.slideInFromRight(): Modifier = this
-    .then(
-        Modifier.slideInHorizontally(
-            initialOffsetX = { it },
-            animationSpec = spring(stiffness = Spring.StiffnessMedium)
-        ) + Modifier.fadeIn(
-            animationSpec = spring(stiffness = Spring.StiffnessMedium)
-        )
-    )
 
 fun Modifier.slideOutToRight(): Modifier = this
-    .then(
-        Modifier.slideOutHorizontally(
-            targetOffsetX = { it },
-            animationSpec = spring(stiffness = Spring.StiffnessMedium)
-        ) + Modifier.fadeOut(
-            animationSpec = spring(stiffness = Spring.StiffnessMedium)
-        )
-    )

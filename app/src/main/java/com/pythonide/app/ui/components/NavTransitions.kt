@@ -1,6 +1,7 @@
 package com.pythonide.app.ui.components
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
@@ -76,7 +77,7 @@ object NavTransitions {
 fun NavGraphBuilder.animatedComposable(
     route: String,
     arguments: List<androidx.navigation.NamedNavArgument> = emptyList(),
-    content: @Composable (NavBackStackEntry) -> Unit
+    content: @Composable AnimatedContentScope.(NavBackStackEntry) -> Unit
 ) {
     composable(
         route = route,
@@ -92,7 +93,7 @@ fun NavGraphBuilder.animatedComposable(
 fun NavGraphBuilder.animatedComposable(
     route: String,
     vararg arguments: Pair<String, NavType<*>>,
-    content: @Composable (NavBackStackEntry) -> Unit
+    content: @Composable AnimatedContentScope.(NavBackStackEntry) -> Unit
 ) {
     composable(
         route = route,

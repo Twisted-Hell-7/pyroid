@@ -36,9 +36,9 @@ import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.FileCopy
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FormatPaint
-import androidx.compose.material.icons.filled.Package
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Security
@@ -86,6 +86,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.pythonide.domain.model.ThemeMode
 import com.pythonide.domain.model.editor.EditorTheme
 import com.pythonide.domain.model.settings.FontFamily
+import com.pythonide.app.ui.theme.background
+import com.pythonide.app.ui.theme.lineNumberColor
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -412,7 +414,7 @@ fun SettingsScreen(
             item {
                 SettingsSection(
                     title = "Packages",
-                    icon = Icons.Default.Package,
+                    icon = Icons.Default.Folder,
                     isExpanded = expandedSection == "packages",
                     onToggle = { expandedSection = if (expandedSection == "packages") null else "packages" }
                 ) {
@@ -503,7 +505,7 @@ fun SettingsScreen(
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.FileCopy, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Copy Settings to Clipboard")
                         }
@@ -708,7 +710,7 @@ private fun ResetButton(
 ) {
     TextButton(
         onClick = onClick,
-        modifier = Modifier.weight(1f)
+        modifier = Modifier.fillMaxWidth()
     ) {
         Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(14.dp))
         Spacer(modifier = Modifier.width(4.dp))

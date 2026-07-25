@@ -169,7 +169,7 @@ class FileManagerRepositoryImpl @Inject constructor(
             file.parentFile?.mkdirs()
             file.writeBytes(content)
 
-            getItem(path)
+            getItem(path).map { it ?: throw Exception("Failed to create file") }
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -183,7 +183,7 @@ class FileManagerRepositoryImpl @Inject constructor(
             }
 
             if (file.mkdirs()) {
-                getItem(path)
+                getItem(path).map { it ?: throw Exception("Failed to create directory") }
             } else {
                 Result.failure(Exception("Failed to create directory: $path"))
             }
@@ -232,7 +232,7 @@ class FileManagerRepositoryImpl @Inject constructor(
             }
 
             if (file.renameTo(newFile)) {
-                getItem(newFile.absolutePath)
+                getItem(newFile.absolutePath).map { it ?: throw Exception("Failed to rename file") }
             } else {
                 Result.failure(Exception("Failed to rename file"))
             }
@@ -256,7 +256,7 @@ class FileManagerRepositoryImpl @Inject constructor(
                 source.copyTo(dest, overwrite = true)
             }
 
-            getItem(destinationPath)
+            getItem(destinationPath).map { it ?: throw Exception("Failed to copy file") }
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -273,7 +273,7 @@ class FileManagerRepositoryImpl @Inject constructor(
             dest.parentFile?.mkdirs()
 
             if (source.renameTo(dest)) {
-                getItem(destinationPath)
+                getItem(destinationPath).map { it ?: throw Exception("Failed to move file") }
             } else {
                 // Fallback to copy + delete
                 if (source.isDirectory) {
@@ -283,7 +283,7 @@ class FileManagerRepositoryImpl @Inject constructor(
                     source.copyTo(dest, overwrite = true)
                     source.delete()
                 }
-                getItem(destinationPath)
+                getItem(destinationPath).map { it ?: throw Exception("Failed to move file") }
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -368,7 +368,7 @@ class FileManagerRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun getFavorites(): Flow<List<FileManagerItem>> = favorites
+    override suspend fun getFavorites(): Flow<List<FileManagerItem>> = favorites
 
     override suspend fun addFavorite(item: FileManagerItem): Result<Boolean> {
         val current = favorites.value.toMutableList()
@@ -396,7 +396,7 @@ class FileManagerRepositoryImpl @Inject constructor(
         // Persist to JSON file
     }
 
-    override fun getRecentFiles(): Flow<List<RecentFile>> = recentFiles
+    override suspend fun getRecentFiles(): Flow<List<RecentFile>> = recentFiles
 
     override suspend fun addRecentFile(item: FileManagerItem): Result<Boolean> {
         val current = recentFiles.value.toMutableList()
@@ -425,7 +425,7 @@ class FileManagerRepositoryImpl @Inject constructor(
         // Persist to JSON file
     }
 
-    override fun getProjects(): Flow<List<Project>> = projects
+    override suspend fun getProjects(): Flow<List<Project>> = projects
 
     override suspend fun createProject(name: String, rootPath: String, description: String): Result<Project> = withContext(Dispatchers.IO) {
         try {
@@ -617,7 +617,7 @@ class FileManagerRepositoryImpl @Inject constructor(
             }
             inputStream.close()
 
-            getItem(destinationPath)
+            getItem(destinationPath).map { it ?: throw Exception("Failed to import file") }
         } catch (e: Exception) {
             Result.failure(e)
         }

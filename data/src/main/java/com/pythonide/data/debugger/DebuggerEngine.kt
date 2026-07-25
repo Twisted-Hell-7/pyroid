@@ -117,15 +117,14 @@ class DebuggerEngine @Inject constructor(
             _debugState.value = DebugState.RUNNING
             addLog(LogLevel.INFO, "Debug session started")
 
-            process.onExit().thenAccept { exitCode ->
-                scope.launch {
-                    if (_debugState.value != DebugState.STOPPED) {
-                        _debugState.value = DebugState.STOPPED
-                        _events.emit(DebugEvent.ExecutionFinished(exitCode.exitValue()))
-                        addLog(LogLevel.INFO, "Debug session ended (exit code: ${exitCode.exitValue()})")
-                    }
-                    cleanup()
+            scope.launch {
+                val exitCode = try { process.waitFor() } catch (_: Exception) { -1 }
+                if (_debugState.value != DebugState.STOPPED) {
+                    _debugState.value = DebugState.STOPPED
+                    _events.emit(DebugEvent.ExecutionFinished(exitCode))
+                    addLog(LogLevel.INFO, "Debug session ended (exit code: $exitCode)")
                 }
+                cleanup()
             }
 
             Result.success(Unit)
@@ -399,7 +398,7 @@ class DebuggerEngine @Inject constructor(
                 }
             }
         } catch (e: Exception) {
-            addLog(LogLevel.WARNING, "Failed to parse event: $line")
+            addLog(LogLevel.WARNING, "Failed to parse event: $jsonStr")
         }
     }
 
@@ -520,7 +519,7 @@ class DebuggerEngine @Inject constructor(
     private suspend fun evaluateWatchExpression(watch: WatchExpression) {
         try {
             val result = evaluateExpression(watch.expression)
-            result onSuccess { variable ->
+            result.onSuccess { variable ->
                 _watchExpressions.update { current ->
                     current.map { w ->
                         if (w.id == watch.id) {
@@ -529,7 +528,7 @@ class DebuggerEngine @Inject constructor(
                     }
                 }
             }
-            result onFailure { e ->
+            result.onFailure { e ->
                 _watchExpressions.update { current ->
                     current.map { w ->
                         if (w.id == watch.id) {

@@ -254,7 +254,7 @@ class CrashPrevention @Inject constructor() {
                 }
 
                 if (attempt < maxRetries - 1) {
-                    Thread.sleep(100 * (attempt + 1))
+                    Thread.sleep(100L * (attempt + 1))
                 }
             }
         }
@@ -281,7 +281,7 @@ class CrashPrevention @Inject constructor() {
                 }
 
                 if (attempt < maxRetries - 1) {
-                    delay(100 * (attempt + 1))
+                    delay(100L * (attempt + 1))
                 }
             }
         }

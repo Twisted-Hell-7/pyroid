@@ -2,6 +2,7 @@ package com.pythonide.data.runtime
 
 import android.content.Context
 import com.pythonide.data.local.CacheManager
+import com.pythonide.data.local.LruCache
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,7 +36,7 @@ class StartupOptimizer @Inject constructor(
         val preferencesLoadTime: Long = 0,
         val fileSystemScanTime: Long = 0,
         val memoryUsage: Long = 0,
-        val cacheStats: Map<String, CacheManager.CacheStats> = emptyMap()
+        val cacheStats: Map<String, LruCache.CacheStats> = emptyMap()
     )
 
     suspend fun optimizeStartup(): StartupMetrics = withContext(Dispatchers.IO) {
@@ -135,8 +136,7 @@ class StartupOptimizer @Inject constructor(
 
     private fun getGarbageCollectionCount(): Int {
         return try {
-            val gc = java.lang.management.ManagementFactory.getGarbageCollectorMXBeans()
-            gc.sumOf { it.collectionCount }.toInt()
+            0
         } catch (e: Exception) {
             0
         }

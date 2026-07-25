@@ -79,7 +79,7 @@ class SyntaxValidator : DiagnosticProvider {
                  trimmed.startsWith("while ") || trimmed.startsWith("with ") ||
                  trimmed.startsWith("try") || trimmed.startsWith("except") ||
                  trimmed.startsWith("finally")) && 
-                !trimmed.endsWith(":") && !trimmed.endsWith(":\\").trimEnd().endsWith(":"  )) {
+                !trimmed.endsWith(":")) {
                 if (!trimmed.endsWith(":") && !trimmed.matches(Regex(".*:\\\\$"))) {
                     diagnostics.add(Diagnostic(
                         id = "syntax_block_${lineIndex}",
@@ -461,7 +461,7 @@ class Linter : DiagnosticProvider {
                     trimmed.removePrefix("class ").split("(")[0].split(":")[0].trim()
                 }
                 
-                if (name.startsWith("_")) continue
+                if (name.startsWith("_")) return@forEachIndexed
                 
                 val nextLine = lines.getOrElse(lineIndex + 1) { "" }.trim()
                 if (!nextLine.startsWith("\"\"\"") && !nextLine.startsWith("'''")) {

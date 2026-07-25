@@ -260,3 +260,30 @@ data class BatchInstallRequest(
     val priority: InstallPriority = InstallPriority.NORMAL,
     val isBackground: Boolean = false
 )
+
+sealed class ProgressState {
+    data object Idle : ProgressState()
+    data class Installing(val packageName: String, val progress: Float) : ProgressState()
+    data class Completed(val packageName: String) : ProgressState()
+    data class Failed(val packageName: String, val error: String) : ProgressState()
+    data class Error(val message: String) : ProgressState()
+}
+
+data class PackageDependency(
+    val packageName: String = "",
+    val version: String = "",
+    val dependencies: List<String> = emptyList(),
+    val name: String = packageName,
+    val requiredBy: String = "",
+    val versionSpec: String = "",
+    val isReverseDependency: Boolean = false
+)
+
+data class PipCacheInfo(
+    val size: Long = 0,
+    val packageCount: Int = 0,
+    val cacheDir: String = "",
+    val httpCacheSize: Long = 0,
+    val wheelCacheSize: Long = 0,
+    val lastCleaned: Long = 0
+)

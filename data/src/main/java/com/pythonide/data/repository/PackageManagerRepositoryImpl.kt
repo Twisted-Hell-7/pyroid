@@ -3,43 +3,42 @@ package com.pythonide.data.repository
 import android.content.Context
 import android.os.Build
 import com.pythonide.data.runtime.core.PythonNativeBridge
+import com.pythonide.domain.model.packageManager.BatchInstallRequest
+import com.pythonide.domain.model.packageManager.InstallProgress
 import com.pythonide.domain.model.packageManager.InstallTask
 import com.pythonide.domain.model.packageManager.InstallTaskStatus
 import com.pythonide.domain.model.packageManager.InstalledPackage
-import com.pythonide.domain.model.packageManager.PackageDependency
+import com.pythonide.domain.model.packageManager.NativeBinaryInfo
+import com.pythonide.domain.model.packageManager.OfflinePackage
+import com.pythonide.domain.model.packageManager.Package
+import com.pythonide.domain.model.packageManager.PackageBackup
+import com.pythonide.domain.model.packageManager.PackageCompatibility
 import com.pythonide.domain.model.packageManager.PackageInfo
 import com.pythonide.domain.model.packageManager.PackageSearchResult
 import com.pythonide.domain.model.packageManager.PackageVersion
-import com.pythonide.domain.model.packageManager.PipCacheInfo
 import com.pythonide.domain.model.packageManager.ProgressState
 import com.pythonide.domain.repository.PackageManagerRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.Call
-import okhttp3.Callback
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.BufferedReader
 import java.io.File
-import java.io.FileOutputStream
-import java.io.InputStreamReader
 import java.util.PriorityQueue
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
-import java.util.zip.ZipFile
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -105,7 +104,7 @@ class PackageManagerRepositoryImpl @Inject constructor(
         .writeTimeout(REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .build()
 
-    private var currentInstallJob: Job? = null
+    private var currentInstallJob: kotlinx.coroutines.Job? = null
 
     init {
         scope.launch {
@@ -113,7 +112,7 @@ class PackageManagerRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun searchPackages(query: String, page: Int): Result<List<PackageSearchResult>> {
+    override suspend fun searchPackages(query: String, page: Int): Result<PackageSearchResult> {
         return withContext(Dispatchers.IO) {
             try {
                 val searchUrl = "$PYPI_SEARCH_URL?q=${query}&page=$page"
@@ -128,7 +127,11 @@ class PackageManagerRepositoryImpl @Inject constructor(
                     val htmlBody = response.body?.string() ?: ""
                     val results = parseSearchResults(htmlBody, query)
                     _searchResults.value = results
-                    Result.success(results)
+                    if (results.isNotEmpty()) {
+                        Result.success(results.first())
+                    } else {
+                        Result.success(PackageSearchResult(query = query, packages = emptyList(), totalCount = 0))
+                    }
                 } else {
                     val errorMsg = "Search failed with code ${response.code}"
                     addErrorMessage(errorMsg)
@@ -176,79 +179,418 @@ class PackageManagerRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun installPackage(
-        packageName: String,
-        version: String?,
-        upgrade: Boolean,
-        forceReinstall: Boolean,
-        noDeps: Boolean,
-        priority: InstallTask.Priority
-    ): Result<InstallTask> {
+    override suspend fun getPackageVersions(packageName: String): Result<List<PackageVersion>> {
         return withContext(Dispatchers.IO) {
             try {
-                val taskId = generateTaskId()
-                val task = InstallTask(
-                    id = taskId,
-                    packageName = packageName,
-                    version = version,
-                    upgrade = upgrade,
-                    forceReinstall = forceReinstall,
-                    noDeps = noDeps,
-                    priority = priority,
-                    status = InstallTaskStatus.Pending,
-                    createdAt = System.currentTimeMillis()
-                )
+                val apiUrl = "$PYPI_BASE_URL/pypi/${packageName}/json"
+                val request = Request.Builder()
+                    .url(apiUrl)
+                    .header("Accept", "application/json")
+                    .header("User-Agent", "PythonIDE-Android/1.0")
+                    .build()
 
-                synchronized(installTaskQueue) {
-                    installTaskQueue.add(task)
+                val response = executeHttpRequest(request)
+                if (response.isSuccessful) {
+                    val jsonBody = response.body?.string() ?: "{}"
+                    val versions = parsePackageVersions(jsonBody)
+                    Result.success(versions)
+                } else {
+                    Result.failure(Exception("Failed to fetch versions: ${response.code}"))
                 }
-                updateInstallQueueState()
-
-                if (!_isProcessingQueue.value) {
-                    processInstallQueue()
-                }
-
-                Result.success(task)
             } catch (e: Exception) {
-                addErrorMessage("Failed to queue install: ${e.message}")
+                addErrorMessage("Error fetching versions: ${e.message}")
                 Result.failure(e)
             }
         }
     }
 
-    override suspend fun uninstallPackage(packageName: String): Result<Unit> {
-        return withContext(Dispatchers.IO) {
-            try {
-                _currentProgress.value = ProgressState.Uninstalling(packageName)
+    override suspend fun getPackageCompatibility(packageName: String): Result<PackageCompatibility> {
+        TODO("Not yet implemented")
+    }
 
-                val pipArgs = buildList {
-                    add("pip")
-                    add("uninstall")
-                    add("-y")
+    override suspend fun checkNativeBinaries(packageName: String): Result<NativeBinaryInfo> {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun getInstalledPackages(): Flow<List<InstalledPackage>> = flow {
+        emit(_installedPackages.value)
+    }
+
+    override suspend fun getInstalledPackage(packageName: String): Result<InstalledPackage> {
+        val pkg = _installedPackages.value.find { it.name.equals(packageName, ignoreCase = true) }
+        return if (pkg != null) {
+            Result.success(pkg)
+        } else {
+            Result.failure(Exception("Package '$packageName' is not installed"))
+        }
+    }
+
+    override suspend fun isPackageInstalled(packageName: String): Boolean {
+        return _installedPackages.value.any { it.name.equals(packageName, ignoreCase = true) }
+    }
+
+    override suspend fun getInstalledVersion(packageName: String): String? {
+        return _installedPackages.value.find { it.name.equals(packageName, ignoreCase = true) }?.version
+    }
+
+    override suspend fun installPackage(packageName: String, version: String?): Flow<InstallProgress> = flow {
+        try {
+            val taskId = generateTaskId()
+            val pipArgs = buildList {
+                add("pip")
+                add("install")
+                if (version != null) {
+                    add("${packageName}==${version}")
+                } else {
                     add(packageName)
                 }
+            }
 
-                val result = executePipCommand(pipArgs)
+            _currentProgress.value = ProgressState.Installing(packageName, 0f)
+            emit(InstallProgress(taskId = taskId, packageName = packageName, status = InstallTaskStatus.INSTALLING, progress = 0f))
 
-                if (result.isSuccess) {
-                    _currentProgress.value = ProgressState.Idle
-                    refreshInstalledPackages()
-                    Result.success(Unit)
-                } else {
-                    val error = result.exceptionOrNull()?.message ?: "Uninstall failed"
-                    _currentProgress.value = ProgressState.Error(error)
-                    addErrorMessage(error)
-                    Result.failure(Exception(error))
+            val result = executePipCommandWithProgress(pipArgs)
+
+            if (result.isSuccess) {
+                _currentProgress.value = ProgressState.Idle
+                emit(InstallProgress(taskId = taskId, packageName = packageName, status = InstallTaskStatus.COMPLETED, progress = 1f))
+                refreshInstalledPackages()
+            } else {
+                val error = result.exceptionOrNull()?.message ?: "Install failed"
+                _currentProgress.value = ProgressState.Error(error)
+                emit(InstallProgress(taskId = taskId, packageName = packageName, status = InstallTaskStatus.FAILED, progress = 0f, message = error))
+                addErrorMessage("Failed to install $packageName: $error")
+            }
+        } catch (e: Exception) {
+            _currentProgress.value = ProgressState.Error(e.message ?: "Unknown error")
+            emit(InstallProgress(taskId = generateTaskId(), packageName = packageName, status = InstallTaskStatus.FAILED, progress = 0f, message = e.message ?: "Unknown error"))
+            addErrorMessage("Error installing $packageName: ${e.message}")
+        }
+    }
+
+    override suspend fun installPackages(packages: List<Pair<String, String?>>): Flow<InstallProgress> = flow {
+        for ((packageName, version) in packages) {
+            installPackage(packageName, version).collect { emit(it) }
+        }
+    }
+
+    override suspend fun uninstallPackage(packageName: String): Flow<InstallProgress> = flow {
+        try {
+            val taskId = generateTaskId()
+            _currentProgress.value = ProgressState.Installing(packageName, 0f)
+            emit(InstallProgress(taskId = taskId, packageName = packageName, status = InstallTaskStatus.INSTALLING, progress = 0f, message = "Uninstalling..."))
+
+            val pipArgs = buildList {
+                add("pip")
+                add("uninstall")
+                add("-y")
+                add(packageName)
+            }
+
+            val result = executePipCommand(pipArgs)
+
+            if (result.isSuccess) {
+                _currentProgress.value = ProgressState.Idle
+                emit(InstallProgress(taskId = taskId, packageName = packageName, status = InstallTaskStatus.COMPLETED, progress = 1f))
+                refreshInstalledPackages()
+            } else {
+                val error = result.exceptionOrNull()?.message ?: "Uninstall failed"
+                _currentProgress.value = ProgressState.Error(error)
+                emit(InstallProgress(taskId = taskId, packageName = packageName, status = InstallTaskStatus.FAILED, progress = 0f, message = error))
+                addErrorMessage(error)
+            }
+        } catch (e: Exception) {
+            _currentProgress.value = ProgressState.Error(e.message ?: "Unknown error")
+            emit(InstallProgress(taskId = generateTaskId(), packageName = packageName, status = InstallTaskStatus.FAILED, progress = 0f, message = e.message ?: "Unknown error"))
+            addErrorMessage("Uninstall error: ${e.message}")
+        }
+    }
+
+    override suspend fun upgradePackage(packageName: String): Flow<InstallProgress> = flow {
+        try {
+            val taskId = generateTaskId()
+            val pipArgs = buildList {
+                add("pip")
+                add("install")
+                add("--upgrade")
+                add(packageName)
+            }
+
+            _currentProgress.value = ProgressState.Installing(packageName, 0f)
+            emit(InstallProgress(taskId = taskId, packageName = packageName, status = InstallTaskStatus.INSTALLING, progress = 0f))
+
+            val result = executePipCommandWithProgress(pipArgs)
+
+            if (result.isSuccess) {
+                _currentProgress.value = ProgressState.Idle
+                emit(InstallProgress(taskId = taskId, packageName = packageName, status = InstallTaskStatus.COMPLETED, progress = 1f))
+                refreshInstalledPackages()
+            } else {
+                val error = result.exceptionOrNull()?.message ?: "Upgrade failed"
+                _currentProgress.value = ProgressState.Error(error)
+                emit(InstallProgress(taskId = taskId, packageName = packageName, status = InstallTaskStatus.FAILED, progress = 0f, message = error))
+                addErrorMessage(error)
+            }
+        } catch (e: Exception) {
+            _currentProgress.value = ProgressState.Error(e.message ?: "Unknown error")
+            emit(InstallProgress(taskId = generateTaskId(), packageName = packageName, status = InstallTaskStatus.FAILED, progress = 0f, message = e.message ?: "Unknown error"))
+            addErrorMessage("Error upgrading package: ${e.message}")
+        }
+    }
+
+    override suspend fun downgradePackage(packageName: String, version: String): Flow<InstallProgress> = flow {
+        try {
+            val taskId = generateTaskId()
+            val pipArgs = buildList {
+                add("pip")
+                add("install")
+                add("${packageName}==${version}")
+            }
+
+            _currentProgress.value = ProgressState.Installing(packageName, 0f)
+            emit(InstallProgress(taskId = taskId, packageName = packageName, status = InstallTaskStatus.INSTALLING, progress = 0f))
+
+            val result = executePipCommandWithProgress(pipArgs)
+
+            if (result.isSuccess) {
+                _currentProgress.value = ProgressState.Idle
+                emit(InstallProgress(taskId = taskId, packageName = packageName, status = InstallTaskStatus.COMPLETED, progress = 1f))
+                refreshInstalledPackages()
+            } else {
+                val error = result.exceptionOrNull()?.message ?: "Downgrade failed"
+                _currentProgress.value = ProgressState.Error(error)
+                emit(InstallProgress(taskId = taskId, packageName = packageName, status = InstallTaskStatus.FAILED, progress = 0f, message = error))
+                addErrorMessage(error)
+            }
+        } catch (e: Exception) {
+            _currentProgress.value = ProgressState.Error(e.message ?: "Unknown error")
+            emit(InstallProgress(taskId = generateTaskId(), packageName = packageName, status = InstallTaskStatus.FAILED, progress = 0f, message = e.message ?: "Unknown error"))
+            addErrorMessage("Error downgrading package: ${e.message}")
+        }
+    }
+
+    override suspend fun reinstallPackage(packageName: String): Flow<InstallProgress> = flow {
+        try {
+            val taskId = generateTaskId()
+            val pipArgs = buildList {
+                add("pip")
+                add("install")
+                add("--force-reinstall")
+                add(packageName)
+            }
+
+            _currentProgress.value = ProgressState.Installing(packageName, 0f)
+            emit(InstallProgress(taskId = taskId, packageName = packageName, status = InstallTaskStatus.INSTALLING, progress = 0f))
+
+            val result = executePipCommandWithProgress(pipArgs)
+
+            if (result.isSuccess) {
+                _currentProgress.value = ProgressState.Idle
+                emit(InstallProgress(taskId = taskId, packageName = packageName, status = InstallTaskStatus.COMPLETED, progress = 1f))
+                refreshInstalledPackages()
+            } else {
+                val error = result.exceptionOrNull()?.message ?: "Reinstall failed"
+                _currentProgress.value = ProgressState.Error(error)
+                emit(InstallProgress(taskId = taskId, packageName = packageName, status = InstallTaskStatus.FAILED, progress = 0f, message = error))
+                addErrorMessage(error)
+            }
+        } catch (e: Exception) {
+            _currentProgress.value = ProgressState.Error(e.message ?: "Unknown error")
+            emit(InstallProgress(taskId = generateTaskId(), packageName = packageName, status = InstallTaskStatus.FAILED, progress = 0f, message = e.message ?: "Unknown error"))
+            addErrorMessage("Error reinstalling package: ${e.message}")
+        }
+    }
+
+    override suspend fun batchInstall(request: BatchInstallRequest): Flow<InstallProgress> = flow {
+        for ((packageName, version) in request.packages) {
+            installPackage(packageName, version).collect { emit(it) }
+        }
+    }
+
+    override suspend fun installFromWheel(wheelPath: String): Flow<InstallProgress> = flow {
+        try {
+            val file = File(wheelPath)
+            if (!file.exists()) {
+                emit(InstallProgress(taskId = generateTaskId(), packageName = file.nameWithoutExtension, status = InstallTaskStatus.FAILED, progress = 0f, message = "File not found: $wheelPath"))
+                return@flow
+            }
+
+            val taskId = generateTaskId()
+            _currentProgress.value = ProgressState.Installing(file.nameWithoutExtension, 0f)
+            emit(InstallProgress(taskId = taskId, packageName = file.nameWithoutExtension, status = InstallTaskStatus.INSTALLING, progress = 0f))
+
+            val pipArgs = buildList {
+                add("pip")
+                add("install")
+                add(wheelPath)
+            }
+
+            val result = executePipCommandWithProgress(pipArgs)
+
+            if (result.isSuccess) {
+                _currentProgress.value = ProgressState.Idle
+                emit(InstallProgress(taskId = taskId, packageName = file.nameWithoutExtension, status = InstallTaskStatus.COMPLETED, progress = 1f))
+                refreshInstalledPackages()
+            } else {
+                val error = result.exceptionOrNull()?.message ?: "Install failed"
+                _currentProgress.value = ProgressState.Error(error)
+                emit(InstallProgress(taskId = taskId, packageName = file.nameWithoutExtension, status = InstallTaskStatus.FAILED, progress = 0f, message = error))
+                addErrorMessage(error)
+            }
+        } catch (e: Exception) {
+            _currentProgress.value = ProgressState.Error(e.message ?: "Unknown error")
+            emit(InstallProgress(taskId = generateTaskId(), packageName = "", status = InstallTaskStatus.FAILED, progress = 0f, message = e.message ?: "Unknown error"))
+            addErrorMessage("Error installing wheel: ${e.message}")
+        }
+    }
+
+    override suspend fun installFromArchive(archivePath: String): Flow<InstallProgress> = flow {
+        try {
+            val file = File(archivePath)
+            if (!file.exists()) {
+                emit(InstallProgress(taskId = generateTaskId(), packageName = file.nameWithoutExtension, status = InstallTaskStatus.FAILED, progress = 0f, message = "File not found: $archivePath"))
+                return@flow
+            }
+
+            val taskId = generateTaskId()
+            _currentProgress.value = ProgressState.Installing(file.nameWithoutExtension, 0f)
+            emit(InstallProgress(taskId = taskId, packageName = file.nameWithoutExtension, status = InstallTaskStatus.INSTALLING, progress = 0f))
+
+            val pipArgs = buildList {
+                add("pip")
+                add("install")
+                add(archivePath)
+            }
+
+            val result = executePipCommandWithProgress(pipArgs)
+
+            if (result.isSuccess) {
+                _currentProgress.value = ProgressState.Idle
+                emit(InstallProgress(taskId = taskId, packageName = file.nameWithoutExtension, status = InstallTaskStatus.COMPLETED, progress = 1f))
+                refreshInstalledPackages()
+            } else {
+                val error = result.exceptionOrNull()?.message ?: "Install failed"
+                _currentProgress.value = ProgressState.Error(error)
+                emit(InstallProgress(taskId = taskId, packageName = file.nameWithoutExtension, status = InstallTaskStatus.FAILED, progress = 0f, message = error))
+                addErrorMessage(error)
+            }
+        } catch (e: Exception) {
+            _currentProgress.value = ProgressState.Error(e.message ?: "Unknown error")
+            emit(InstallProgress(taskId = generateTaskId(), packageName = "", status = InstallTaskStatus.FAILED, progress = 0f, message = e.message ?: "Unknown error"))
+            addErrorMessage("Error installing archive: ${e.message}")
+        }
+    }
+
+    override suspend fun installFromDirectory(dirPath: String): Flow<InstallProgress> = flow {
+        try {
+            val dir = File(dirPath)
+            if (!dir.exists() || !dir.isDirectory) {
+                emit(InstallProgress(taskId = generateTaskId(), packageName = dir.name, status = InstallTaskStatus.FAILED, progress = 0f, message = "Directory not found: $dirPath"))
+                return@flow
+            }
+
+            val taskId = generateTaskId()
+            _currentProgress.value = ProgressState.Installing(dir.name, 0f)
+            emit(InstallProgress(taskId = taskId, packageName = dir.name, status = InstallTaskStatus.INSTALLING, progress = 0f))
+
+            val pipArgs = buildList {
+                add("pip")
+                add("install")
+                add(dirPath)
+            }
+
+            val result = executePipCommandWithProgress(pipArgs)
+
+            if (result.isSuccess) {
+                _currentProgress.value = ProgressState.Idle
+                emit(InstallProgress(taskId = taskId, packageName = dir.name, status = InstallTaskStatus.COMPLETED, progress = 1f))
+                refreshInstalledPackages()
+            } else {
+                val error = result.exceptionOrNull()?.message ?: "Install failed"
+                _currentProgress.value = ProgressState.Error(error)
+                emit(InstallProgress(taskId = taskId, packageName = dir.name, status = InstallTaskStatus.FAILED, progress = 0f, message = error))
+                addErrorMessage(error)
+            }
+        } catch (e: Exception) {
+            _currentProgress.value = ProgressState.Error(e.message ?: "Unknown error")
+            emit(InstallProgress(taskId = generateTaskId(), packageName = "", status = InstallTaskStatus.FAILED, progress = 0f, message = e.message ?: "Unknown error"))
+            addErrorMessage("Error installing from directory: ${e.message}")
+        }
+    }
+
+    override suspend fun cancelInstall(taskId: String): Result<Boolean> {
+        return withContext(Dispatchers.IO) {
+            try {
+                synchronized(installTaskQueue) {
+                    val task = installTaskQueue.find { it.id == taskId }
+                    if (task != null) {
+                        installTaskQueue.remove(task)
+                        updateInstallQueueState()
+                    }
                 }
+
+                if (currentInstallJob?.isActive == true) {
+                    currentInstallJob?.cancel()
+                    currentInstallJob = null
+                }
+
+                _currentProgress.value = ProgressState.Idle
+                Result.success(true)
             } catch (e: Exception) {
-                _currentProgress.value = ProgressState.Error(e.message ?: "Unknown error")
-                addErrorMessage("Uninstall error: ${e.message}")
+                addErrorMessage("Error cancelling install: ${e.message}")
                 Result.failure(e)
             }
         }
     }
 
-    override suspend fun listInstalledPackages(): Result<List<InstalledPackage>> {
+    override suspend fun pauseInstall(taskId: String): Result<Boolean> {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun resumeInstall(taskId: String): Result<Boolean> {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun retryInstall(taskId: String): Flow<InstallProgress> = flow {
+        val task = synchronized(installTaskQueue) {
+            installTaskQueue.find { it.id == taskId }
+        }
+        if (task != null) {
+            installPackage(task.packageName, task.version).collect { emit(it) }
+        } else {
+            emit(InstallProgress(taskId = taskId, packageName = "", status = InstallTaskStatus.FAILED, progress = 0f, message = "Task not found: $taskId"))
+        }
+    }
+
+    override suspend fun getInstallQueue(): Flow<List<InstallTask>> = flow {
+        emit(installTaskQueue.toList())
+    }
+
+    override suspend fun getActiveInstalls(): Flow<Map<String, InstallProgress>> = flow {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun getCompletedInstalls(): Flow<List<InstallTask>> = flow {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun getFailedInstalls(): Flow<List<InstallTask>> = flow {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun getInstallLogs(taskId: String): Flow<List<String>> = flow {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun clearCompletedInstalls(): Result<Boolean> {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun clearFailedInstalls(): Result<Boolean> {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun pipList(): Result<List<InstalledPackage>> {
         return withContext(Dispatchers.IO) {
             try {
                 val pipArgs = buildList {
@@ -273,27 +615,187 @@ class PackageManagerRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun freezePackages(): Result<String> {
+    override suspend fun pipFreeze(): Result<String> {
+        return freezePackages()
+    }
+
+    override suspend fun pipShow(packageName: String): Result<String> {
         return withContext(Dispatchers.IO) {
             try {
                 val pipArgs = buildList {
                     add("pip")
-                    add("freeze")
+                    add("show")
+                    add(packageName)
+                }
+
+                val result = executePipCommand(pipArgs)
+                if (result.isSuccess) {
+                    Result.success(result.getOrNull() ?: "")
+                } else {
+                    Result.failure(result.exceptionOrNull() ?: Exception("Failed to show package info"))
+                }
+            } catch (e: Exception) {
+                addErrorMessage("Error showing package info: ${e.message}")
+                Result.failure(e)
+            }
+        }
+    }
+
+    override suspend fun pipCacheList(): Result<List<String>> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val pipArgs = buildList {
+                    add("pip")
+                    add("cache")
+                    add("list")
                 }
 
                 val result = executePipCommand(pipArgs)
                 if (result.isSuccess) {
                     val output = result.getOrNull() ?: ""
-                    _freezeOutput.value = output
-                    Result.success(output)
+                    val files = output.lines().filter { it.isNotBlank() }
+                    Result.success(files)
                 } else {
-                    Result.failure(result.exceptionOrNull() ?: Exception("Freeze failed"))
+                    Result.failure(result.exceptionOrNull() ?: Exception("Failed to list cache"))
                 }
             } catch (e: Exception) {
-                addErrorMessage("Error freezing packages: ${e.message}")
+                addErrorMessage("Error listing cache: ${e.message}")
                 Result.failure(e)
             }
         }
+    }
+
+    override suspend fun pipCachePurge(): Result<Boolean> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val pipArgs = buildList {
+                    add("pip")
+                    add("cache")
+                    add("purge")
+                }
+
+                val result = executePipCommand(pipArgs)
+                if (result.isSuccess) {
+                    Result.success(true)
+                } else {
+                    Result.failure(result.exceptionOrNull() ?: Exception("Failed to purge cache"))
+                }
+            } catch (e: Exception) {
+                addErrorMessage("Error purging cache: ${e.message}")
+                Result.failure(e)
+            }
+        }
+    }
+
+    override suspend fun pipCacheDir(): Result<String> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val pipArgs = buildList {
+                    add("pip")
+                    add("cache")
+                    add("dir")
+                }
+
+                val result = executePipCommand(pipArgs)
+                if (result.isSuccess) {
+                    Result.success(result.getOrNull() ?: "")
+                } else {
+                    Result.failure(result.exceptionOrNull() ?: Exception("Failed to get cache dir"))
+                }
+            } catch (e: Exception) {
+                addErrorMessage("Error getting cache dir: ${e.message}")
+                Result.failure(e)
+            }
+        }
+    }
+
+    override suspend fun pipCheck(): Result<String> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val pipArgs = buildList {
+                    add("pip")
+                    add("check")
+                }
+
+                val result = executePipCommand(pipArgs)
+                if (result.isSuccess) {
+                    Result.success(result.getOrNull() ?: "")
+                } else {
+                    Result.failure(result.exceptionOrNull() ?: Exception("pip check failed"))
+                }
+            } catch (e: Exception) {
+                addErrorMessage("Error running pip check: ${e.message}")
+                Result.failure(e)
+            }
+        }
+    }
+
+    override suspend fun getOfflinePackages(): Flow<List<OfflinePackage>> = flow {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun addOfflinePackage(filePath: String): Result<OfflinePackage> {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun removeOfflinePackage(packageId: String): Result<Boolean> {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun createBackup(name: String, description: String): Result<PackageBackup> {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun getBackups(): Flow<List<PackageBackup>> = flow {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun restoreBackup(backupId: String): Flow<InstallProgress> = flow {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun deleteBackup(backupId: String): Result<Boolean> {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun exportBackup(backupId: String, exportPath: String): Result<String> {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun importBackup(backupPath: String): Result<PackageBackup> {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun resolveDependencies(packageName: String): Result<Map<String, List<String>>> {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun getReverseDependencies(packageName: String): Result<List<String>> {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun checkDependencyConflicts(packageName: String): Result<List<String>> {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun getAvailableAbis(): List<String> {
+        return Build.SUPPORTED_ABIS.toList()
+    }
+
+    override suspend fun getCompatiblePackages(): Flow<List<Package>> = flow {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun getIncompatiblePackages(): Flow<List<Package>> = flow {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun exportRequirements(): Result<String> {
+        return freezePackages()
+    }
+
+    override suspend fun importRequirements(content: String): Result<Unit> {
+        return installFromRequirements(content)
     }
 
     override suspend fun installFromRequirements(requirementsContent: String): Result<Unit> {
@@ -332,503 +834,24 @@ class PackageManagerRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun showPackageInfo(packageName: String): Result<Map<String, String>> {
+    override suspend fun freezePackages(): Result<String> {
         return withContext(Dispatchers.IO) {
             try {
                 val pipArgs = buildList {
                     add("pip")
-                    add("show")
-                    add(packageName)
+                    add("freeze")
                 }
 
                 val result = executePipCommand(pipArgs)
                 if (result.isSuccess) {
                     val output = result.getOrNull() ?: ""
-                    val info = parsePipShowOutput(output)
-                    Result.success(info)
+                    _freezeOutput.value = output
+                    Result.success(output)
                 } else {
-                    Result.failure(result.exceptionOrNull() ?: Exception("Failed to show package info"))
+                    Result.failure(result.exceptionOrNull() ?: Exception("Freeze failed"))
                 }
             } catch (e: Exception) {
-                addErrorMessage("Error showing package info: ${e.message}")
-                Result.failure(e)
-            }
-        }
-    }
-
-    override suspend fun installOfflinePackage(filePath: String): Result<Unit> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val file = File(filePath)
-                if (!file.exists()) {
-                    return@withContext Result.failure(Exception("File not found: $filePath"))
-                }
-
-                if (!isPackageFileSupported(filePath)) {
-                    return@withContext Result.failure(
-                        Exception("Unsupported package format. Supported: .whl, .tar.gz, .zip")
-                    )
-                }
-
-                val compatibilityCheck = checkNativeBinaryCompatibility(filePath)
-                if (!compatibilityCheck.isSuccess) {
-                    return@withContext Result.failure(
-                        compatibilityCheck.exceptionOrNull()
-                            ?: Exception("Compatibility check failed")
-                    )
-                }
-
-                _currentProgress.value = ProgressState.Installing(file.name, 0f)
-
-                val pipArgs = buildList {
-                    add("pip")
-                    add("install")
-                    add(filePath)
-                }
-
-                val result = executePipCommandWithProgress(pipArgs)
-
-                if (result.isSuccess) {
-                    _currentProgress.value = ProgressState.Idle
-                    refreshInstalledPackages()
-                    Result.success(Unit)
-                } else {
-                    val error = result.exceptionOrNull()?.message ?: "Offline install failed"
-                    _currentProgress.value = ProgressState.Error(error)
-                    addErrorMessage(error)
-                    Result.failure(Exception(error))
-                }
-            } catch (e: Exception) {
-                _currentProgress.value = ProgressState.Error(e.message ?: "Unknown error")
-                addErrorMessage("Error installing offline package: ${e.message}")
-                Result.failure(e)
-            }
-        }
-    }
-
-    override suspend fun installFromUrl(url: String): Result<Unit> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val tempDir = File(context.cacheDir, "downloaded_packages")
-                tempDir.mkdirs()
-
-                val fileName = url.substringAfterLast("/").ifEmpty { "package.whl" }
-                val tempFile = File(tempDir, fileName)
-
-                _currentProgress.value = ProgressState.Downloading(0f)
-
-                downloadFile(url, tempFile) { progress ->
-                    _currentProgress.value = ProgressState.Downloading(progress)
-                }
-
-                val installResult = installOfflinePackage(tempFile.absolutePath)
-                tempFile.delete()
-                tempDir.deleteRecursively()
-
-                installResult
-            } catch (e: Exception) {
-                _currentProgress.value = ProgressState.Error(e.message ?: "Unknown error")
-                addErrorMessage("Error installing from URL: ${e.message}")
-                Result.failure(e)
-            }
-        }
-    }
-
-    override suspend fun upgradePackage(packageName: String): Result<Unit> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val pipArgs = buildList {
-                    add("pip")
-                    add("install")
-                    add("--upgrade")
-                    add(packageName)
-                }
-
-                _currentProgress.value = ProgressState.Updating(packageName, 0f)
-                val result = executePipCommandWithProgress(pipArgs)
-
-                if (result.isSuccess) {
-                    _currentProgress.value = ProgressState.Idle
-                    refreshInstalledPackages()
-                    Result.success(Unit)
-                } else {
-                    val error = result.exceptionOrNull()?.message ?: "Upgrade failed"
-                    _currentProgress.value = ProgressState.Error(error)
-                    addErrorMessage(error)
-                    Result.failure(Exception(error))
-                }
-            } catch (e: Exception) {
-                _currentProgress.value = ProgressState.Error(e.message ?: "Unknown error")
-                addErrorMessage("Error upgrading package: ${e.message}")
-                Result.failure(e)
-            }
-        }
-    }
-
-    override suspend fun upgradeAllPackages(): Result<Unit> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val pipArgs = buildList {
-                    add("pip")
-                    add("install")
-                    add("--upgrade")
-                    add("--all")
-                }
-
-                _currentProgress.value = ProgressState.Updating("all packages", 0f)
-                val result = executePipCommandWithProgress(pipArgs)
-
-                if (result.isSuccess) {
-                    _currentProgress.value = ProgressState.Idle
-                    refreshInstalledPackages()
-                    Result.success(Unit)
-                } else {
-                    val error = result.exceptionOrNull()?.message ?: "Upgrade all failed"
-                    _currentProgress.value = ProgressState.Error(error)
-                    addErrorMessage(error)
-                    Result.failure(Exception(error))
-                }
-            } catch (e: Exception) {
-                _currentProgress.value = ProgressState.Error(e.message ?: "Unknown error")
-                addErrorMessage("Error upgrading all packages: ${e.message}")
-                Result.failure(e)
-            }
-        }
-    }
-
-    override suspend fun searchInstalledPackages(query: String): Result<List<InstalledPackage>> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val allPackages = _installedPackages.value
-                val filtered = if (query.isBlank()) {
-                    allPackages
-                } else {
-                    allPackages.filter {
-                        it.name.contains(query, ignoreCase = true) ||
-                                it.version.contains(query, ignoreCase = true)
-                    }
-                }
-                Result.success(filtered)
-            } catch (e: Exception) {
-                addErrorMessage("Error searching installed packages: ${e.message}")
-                Result.failure(e)
-            }
-        }
-    }
-
-    override suspend fun getPackageDependencies(packageName: String): Result<List<PackageDependency>> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val pipArgs = buildList {
-                    add("pip")
-                    add("show")
-                    add(packageName)
-                }
-
-                val result = executePipCommand(pipArgs)
-                if (result.isSuccess) {
-                    val output = result.getOrNull() ?: ""
-                    val deps = parseDependencies(output)
-                    Result.success(deps)
-                } else {
-                    Result.failure(result.exceptionOrNull() ?: Exception("Failed to get dependencies"))
-                }
-            } catch (e: Exception) {
-                addErrorMessage("Error getting dependencies: ${e.message}")
-                Result.failure(e)
-            }
-        }
-    }
-
-    override suspend fun getPackageVersions(packageName: String): Result<List<PackageVersion>> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val apiUrl = "$PYPI_BASE_URL/pypi/${packageName}/json"
-                val request = Request.Builder()
-                    .url(apiUrl)
-                    .header("Accept", "application/json")
-                    .header("User-Agent", "PythonIDE-Android/1.0")
-                    .build()
-
-                val response = executeHttpRequest(request)
-                if (response.isSuccessful) {
-                    val jsonBody = response.body?.string() ?: "{}"
-                    val versions = parsePackageVersions(jsonBody)
-                    Result.success(versions)
-                } else {
-                    Result.failure(Exception("Failed to fetch versions: ${response.code}"))
-                }
-            } catch (e: Exception) {
-                addErrorMessage("Error fetching versions: ${e.message}")
-                Result.failure(e)
-            }
-        }
-    }
-
-    override suspend fun getPipCacheInfo(): Result<PipCacheInfo> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val pipArgs = buildList {
-                    add("pip")
-                    add("cache")
-                    add("info")
-                }
-
-                val result = executePipCommand(pipArgs)
-                if (result.isSuccess) {
-                    val output = result.getOrNull() ?: ""
-                    val cacheInfo = parseCacheInfo(output)
-                    Result.success(cacheInfo)
-                } else {
-                    Result.failure(result.exceptionOrNull() ?: Exception("Failed to get cache info"))
-                }
-            } catch (e: Exception) {
-                addErrorMessage("Error getting cache info: ${e.message}")
-                Result.failure(e)
-            }
-        }
-    }
-
-    override suspend fun clearPipCache(): Result<Unit> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val pipArgs = buildList {
-                    add("pip")
-                    add("cache")
-                    add("purge")
-                }
-
-                val result = executePipCommand(pipArgs)
-                if (result.isSuccess) {
-                    Result.success(Unit)
-                } else {
-                    Result.failure(result.exceptionOrNull() ?: Exception("Failed to clear cache"))
-                }
-            } catch (e: Exception) {
-                addErrorMessage("Error clearing cache: ${e.message}")
-                Result.failure(e)
-            }
-        }
-    }
-
-    override suspend fun backupPackages(): Result<String> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val freezeResult = freezePackages()
-                if (freezeResult.isFailure) {
-                    return@withContext Result.failure(
-                        freezeResult.exceptionOrNull() ?: Exception("Freeze failed")
-                    )
-                }
-
-                val freezeContent = freezeResult.getOrDefault("")
-                val backupDir = File(context.filesDir, BACKUP_DIR_NAME)
-                backupDir.mkdirs()
-
-                val timestamp = System.currentTimeMillis()
-                val backupFile = File(backupDir, "backup_$timestamp.txt")
-                backupFile.writeText(freezeContent)
-
-                val installedJson = JSONObject()
-                val packagesArray = JSONArray()
-
-                for (pkg in _installedPackages.value) {
-                    val pkgJson = JSONObject().apply {
-                        put("name", pkg.name)
-                        put("version", pkg.version)
-                    }
-                    packagesArray.put(pkgJson)
-                }
-
-                installedJson.put("packages", packagesArray)
-                installedJson.put("timestamp", timestamp)
-                installedJson.put("freeze_content", freezeContent)
-
-                val metadataFile = File(backupDir, "backup_${timestamp}_metadata.json")
-                metadataFile.writeText(installedJson.toString(2))
-
-                Result.success(backupFile.absolutePath)
-            } catch (e: Exception) {
-                addErrorMessage("Error backing up packages: ${e.message}")
-                Result.failure(e)
-            }
-        }
-    }
-
-    override suspend fun restorePackages(backupPath: String): Result<Unit> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val backupFile = File(backupPath)
-                if (!backupFile.exists()) {
-                    return@withContext Result.failure(Exception("Backup file not found: $backupPath"))
-                }
-
-                val requirementsContent = backupFile.readText()
-                if (requirementsContent.isBlank()) {
-                    return@withContext Result.failure(Exception("Backup file is empty"))
-                }
-
-                val metadataFile = File(
-                    context.filesDir,
-                    "$BACKUP_DIR_NAME/${backupFile.nameWithoutExtension}_metadata.json"
-                )
-                if (metadataFile.exists()) {
-                    val metadata = JSONObject(metadataFile.readText())
-                    val timestamp = metadata.optLong("timestamp", 0L)
-                    if (timestamp > 0) {
-                        val timeSinceBackup = System.currentTimeMillis() - timestamp
-                        if (timeSinceBackup > 7 * 24 * 60 * 60 * 1000L) {
-                            addErrorMessage("Warning: This backup is over 7 days old")
-                        }
-                    }
-                }
-
-                installFromRequirements(requirementsContent)
-            } catch (e: Exception) {
-                addErrorMessage("Error restoring packages: ${e.message}")
-                Result.failure(e)
-            }
-        }
-    }
-
-    override suspend fun cancelInstall(taskId: String): Result<Unit> {
-        return withContext(Dispatchers.IO) {
-            try {
-                synchronized(installTaskQueue) {
-                    val task = installTaskQueue.find { it.id == taskId }
-                    if (task != null) {
-                        installTaskQueue.remove(task)
-                        updateInstallQueueState()
-                    }
-                }
-
-                if (currentInstallJob?.isActive == true) {
-                    currentInstallJob?.cancel()
-                    currentInstallJob = null
-                }
-
-                _currentProgress.value = ProgressState.Idle
-                Result.success(Unit)
-            } catch (e: Exception) {
-                addErrorMessage("Error cancelling install: ${e.message}")
-                Result.failure(e)
-            }
-        }
-    }
-
-    override suspend fun retryInstall(taskId: String): Result<InstallTask> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val task = synchronized(installTaskQueue) {
-                    installTaskQueue.find { it.id == taskId }
-                }
-
-                if (task != null) {
-                    installPackage(
-                        packageName = task.packageName,
-                        version = task.version,
-                        upgrade = task.upgrade,
-                        forceReinstall = task.forceReinstall,
-                        noDeps = task.noDeps,
-                        priority = task.priority
-                    )
-                } else {
-                    Result.failure(Exception("Task not found: $taskId"))
-                }
-            } catch (e: Exception) {
-                addErrorMessage("Error retrying install: ${e.message}")
-                Result.failure(e)
-            }
-        }
-    }
-
-    override suspend fun clearInstallQueue(): Result<Unit> {
-        return withContext(Dispatchers.IO) {
-            try {
-                synchronized(installTaskQueue) {
-                    installTaskQueue.clear()
-                }
-                updateInstallQueueState()
-                _currentProgress.value = ProgressState.Idle
-                Result.success(Unit)
-            } catch (e: Exception) {
-                addErrorMessage("Error clearing queue: ${e.message}")
-                Result.failure(e)
-            }
-        }
-    }
-
-    override suspend fun pipCommand(args: List<String>): Result<String> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val pipArgs = buildList {
-                    add("pip")
-                    addAll(args)
-                }
-                val result = executePipCommand(pipArgs)
-                if (result.isSuccess) {
-                    Result.success(result.getOrDefault(""))
-                } else {
-                    Result.failure(result.exceptionOrNull() ?: Exception("pip command failed"))
-                }
-            } catch (e: Exception) {
-                addErrorMessage("pip command error: ${e.message}")
-                Result.failure(e)
-            }
-        }
-    }
-
-    override fun refreshInstalledPackages() {
-        scope.launch {
-            try {
-                val pipArgs = buildList {
-                    add("pip")
-                    add("list")
-                    add("--format=json")
-                }
-
-                val result = executePipCommand(pipArgs)
-                if (result.isSuccess) {
-                    val output = result.getOrNull() ?: ""
-                    val packages = parseInstalledPackagesJson(output)
-                    _installedPackages.value = packages
-                }
-            } catch (e: Exception) {
-                addErrorMessage("Error refreshing packages: ${e.message}")
-            }
-        }
-    }
-
-    override fun clearErrors() {
-        _errorMessages.value = emptyList()
-    }
-
-    override suspend fun checkNativeBinaryCompatibility(filePath: String): Result<Boolean> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val file = File(filePath)
-                if (!file.exists()) {
-                    return@withContext Result.failure(Exception("File not found: $filePath"))
-                }
-
-                if (filePath.endsWith(".whl")) {
-                    val compatible = checkWheelCompatibility(filePath)
-                    return@withContext if (compatible) {
-                        Result.success(true)
-                    } else {
-                        val deviceAbis = Build.SUPPORTED_ABIS.joinToString(", ")
-                        Result.failure(
-                            Exception(
-                                "Binary compatibility issue detected. " +
-                                        "Device ABIs: $deviceAbis. " +
-                                        "Package may contain native binaries for incompatible architectures."
-                            )
-                        )
-                    }
-                }
-
-                Result.success(true)
-            } catch (e: Exception) {
+                addErrorMessage("Error freezing packages: ${e.message}")
                 Result.failure(e)
             }
         }
@@ -859,14 +882,6 @@ class PackageManagerRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun exportRequirements(): Result<String> {
-        return freezePackages()
-    }
-
-    override suspend fun importRequirements(content: String): Result<Unit> {
-        return installFromRequirements(content)
-    }
-
     private fun processInstallQueue() {
         scope.launch {
             _isProcessingQueue.value = true
@@ -880,10 +895,11 @@ class PackageManagerRepositoryImpl @Inject constructor(
                     break
                 }
 
-                currentInstallJob = launch {
-                    executeInstallTask(task)
+                currentInstallJob = kotlinx.coroutines.coroutineScope {
+                    launch {
+                        executeInstallTask(task)
+                    }
                 }
-                currentInstallJob?.join()
             }
 
             _isProcessingQueue.value = false
@@ -891,15 +907,12 @@ class PackageManagerRepositoryImpl @Inject constructor(
     }
 
     private suspend fun executeInstallTask(task: InstallTask) {
-        updateTaskStatus(task.id, InstallTaskStatus.Running)
+        updateTaskStatus(task.id, InstallTaskStatus.INSTALLING)
 
         try {
             val pipArgs = buildList {
                 add("pip")
                 add("install")
-                if (task.upgrade) add("--upgrade")
-                if (task.forceReinstall) add("--force-reinstall")
-                if (task.noDeps) add("--no-deps")
                 if (task.version != null) {
                     add("${task.packageName}==${task.version}")
                 } else {
@@ -912,17 +925,17 @@ class PackageManagerRepositoryImpl @Inject constructor(
             val result = executePipCommandWithProgress(pipArgs)
 
             if (result.isSuccess) {
-                updateTaskStatus(task.id, InstallTaskStatus.Completed)
+                updateTaskStatus(task.id, InstallTaskStatus.COMPLETED)
                 _currentProgress.value = ProgressState.Idle
                 refreshInstalledPackages()
             } else {
                 val error = result.exceptionOrNull()?.message ?: "Install failed"
-                updateTaskStatus(task.id, InstallTaskStatus.Failed(error))
+                updateTaskStatus(task.id, InstallTaskStatus.FAILED)
                 _currentProgress.value = ProgressState.Error(error)
                 addErrorMessage("Failed to install ${task.packageName}: $error")
             }
         } catch (e: Exception) {
-            updateTaskStatus(task.id, InstallTaskStatus.Failed(e.message ?: "Unknown error"))
+            updateTaskStatus(task.id, InstallTaskStatus.FAILED)
             _currentProgress.value = ProgressState.Error(e.message ?: "Unknown error")
             addErrorMessage("Error installing ${task.packageName}: ${e.message}")
         }
@@ -1019,7 +1032,7 @@ class PackageManagerRepositoryImpl @Inject constructor(
     }
 
     private fun parseSearchResults(html: String, query: String): List<PackageSearchResult> {
-        val results = mutableListOf<PackageSearchResult>()
+        val results = mutableListOf<Package>()
 
         val packagePattern = Regex("""<a\s+class="package-snippet__name"[^>]*>([^<]+)</a>""")
         val versionPattern = Regex("""<span\s+class="package-snippet__version[^"]*">([^<]+)</span>""")
@@ -1035,10 +1048,10 @@ class PackageManagerRepositoryImpl @Inject constructor(
             val description = if (i < descriptions.size) descriptions[i].groupValues[1].trim() else ""
 
             results.add(
-                PackageSearchResult(
+                Package(
                     name = name,
-                    latestVersion = version,
-                    description = description,
+                    version = version,
+                    summary = description,
                     isInstalled = _installedPackages.value.any { it.name.equals(name, ignoreCase = true) }
                 )
             )
@@ -1048,7 +1061,11 @@ class PackageManagerRepositoryImpl @Inject constructor(
             return emptyList()
         }
 
-        return results
+        return listOf(PackageSearchResult(
+            query = query,
+            packages = results,
+            totalCount = results.size
+        ))
     }
 
     private fun parsePackageInfo(json: String, packageName: String): PackageInfo {
@@ -1105,9 +1122,6 @@ class PackageManagerRepositoryImpl @Inject constructor(
             author = author,
             homePage = homePage,
             license = licenseText,
-            description = description,
-            requiresPython = requiresPython,
-            requiresDist = requiresDist,
             classifiers = classifiers,
             versions = versions
         )
@@ -1194,182 +1208,23 @@ class PackageManagerRepositoryImpl @Inject constructor(
         return info
     }
 
-    private fun parseDependencies(output: String): List<PackageDependency> {
-        val deps = mutableListOf<PackageDependency>()
-        val info = parsePipShowOutput(output)
-
-        val requires = info["Requires"]
-        if (!requires.isNullOrBlank()) {
-            val depNames = requires.split(",").map { it.trim() }
-            for (depName in depNames) {
-                if (depName.isNotBlank()) {
-                    deps.add(
-                        PackageDependency(
-                            name = depName,
-                            requiredBy = info["Name"] ?: "",
-                            versionSpec = ""
-                        )
-                    )
-                }
-            }
-        }
-
-        val requiredBy = info["Required-by"]
-        if (!requiredBy.isNullOrBlank()) {
-            val dependents = requiredBy.split(",").map { it.trim() }
-            for (dependent in dependents) {
-                if (dependent.isNotBlank()) {
-                    deps.add(
-                        PackageDependency(
-                            name = dependent,
-                            requiredBy = info["Name"] ?: "",
-                            versionSpec = "",
-                            isReverseDependency = true
-                        )
-                    )
-                }
-            }
-        }
-
-        return deps
-    }
-
-    private fun parseCacheInfo(output: String): PipCacheInfo {
-        val lines = output.lines()
-        var packageCount = 0
-        var httpSize = ""
-        var wheelSize = ""
-        var lastCleaned = ""
-
-        for (line in lines) {
-            when {
-                line.contains("Package index page cache") -> {
-                    packageCount = Regex("\\d+").find(line)?.value?.toIntOrNull() ?: 0
-                }
-                line.contains("http") || line.contains("HTTP") -> {
-                    httpSize = line.substringAfter(":").trim()
-                }
-                line.contains("wheel") || line.contains("WHEEL") -> {
-                    wheelSize = line.substringAfter(":").trim()
-                }
-                line.contains("cleaned") || line.contains("last") -> {
-                    lastCleaned = line.substringAfter(":").trim()
-                }
-            }
-        }
-
-        if (packageCount == 0) {
-            for (line in lines) {
-                val number = Regex("\\d+").find(line)?.value?.toIntOrNull()
-                if (number != null && packageCount == 0) {
-                    packageCount = number
-                }
-            }
-        }
-
-        return PipCacheInfo(
-            packageCount = packageCount,
-            httpCacheSize = httpSize,
-            wheelCacheSize = wheelSize,
-            lastCleaned = lastCleaned
-        )
-    }
-
-    private fun isPackageFileSupported(filePath: String): Boolean {
-        return filePath.endsWith(".whl") ||
-                filePath.endsWith(".tar.gz") ||
-                filePath.endsWith(".zip")
-    }
-
-    private suspend fun checkWheelCompatibility(filePath: String): Boolean {
-        return withContext(Dispatchers.IO) {
+    private fun refreshInstalledPackages() {
+        scope.launch {
             try {
-                val file = File(filePath)
-                if (!file.name.endsWith(".whl")) return@withContext true
-
-                val parts = file.nameWithoutExtension.split("-")
-                if (parts.size < 4) return@withContext true
-
-                val wheelTag = parts.last()
-                val tagParts = wheelTag.split("-")
-
-                if (tagParts.size >= 3) {
-                    val abiTag = tagParts[1]
-                    val platformTag = tagParts[2]
-
-                    if (abiTag == "none" || platformTag == "any") {
-                        return@withContext true
-                    }
-
-                    val supportedAbis = Build.SUPPORTED_ABIS.toSet()
-                    val wheelCompatibleAbis = extractAbisFromTag(abiTag)
-
-                    return@withContext wheelCompatibleAbis.isEmpty() ||
-                            wheelCompatibleAbis.any { it in supportedAbis }
+                val pipArgs = buildList {
+                    add("pip")
+                    add("list")
+                    add("--format=json")
                 }
 
-                true
+                val result = executePipCommand(pipArgs)
+                if (result.isSuccess) {
+                    val output = result.getOrNull() ?: ""
+                    val packages = parseInstalledPackagesJson(output)
+                    _installedPackages.value = packages
+                }
             } catch (e: Exception) {
-                true
-            }
-        }
-    }
-
-    private fun extractAbisFromTag(abiTag: String): Set<String> {
-        val abis = mutableSetOf<String>()
-        val abiMap = mapOf(
-            "arm64" to "arm64-v8a",
-            "armv7l" to "armeabi-v7a",
-            "armv7" to "armeabi-v7a",
-            "x86_64" to "x86_64",
-            "x86" to "x86",
-            "aarch64" to "arm64-v8a"
-        )
-
-        for ((key, value) in abiMap) {
-            if (abiTag.contains(key, ignoreCase = true)) {
-                abis.add(value)
-            }
-        }
-
-        return abis
-    }
-
-    private suspend fun downloadFile(
-        url: String,
-        destination: File,
-        onProgress: (Float) -> Unit
-    ) {
-        withContext(Dispatchers.IO) {
-            val request = Request.Builder()
-                .url(url)
-                .build()
-
-            val response = httpClient.newCall(request).execute()
-
-            if (!response.isSuccessful) {
-                throw Exception("Download failed with code ${response.code}")
-            }
-
-            val body = response.body ?: throw Exception("Empty response body")
-            val contentLength = body.contentLength()
-
-            body.byteStream().use { input ->
-                FileOutputStream(destination).use { output ->
-                    val buffer = ByteArray(8192)
-                    var bytesRead: Int
-                    var totalBytesRead = 0L
-
-                    while (input.read(buffer).also { bytesRead = it } != -1) {
-                        output.write(buffer, 0, bytesRead)
-                        totalBytesRead += bytesRead
-
-                        if (contentLength > 0) {
-                            val progress = totalBytesRead.toFloat() / contentLength.toFloat()
-                            onProgress(progress)
-                        }
-                    }
-                }
+                addErrorMessage("Error refreshing packages: ${e.message}")
             }
         }
     }

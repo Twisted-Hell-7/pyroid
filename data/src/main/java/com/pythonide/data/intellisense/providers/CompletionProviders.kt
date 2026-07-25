@@ -157,7 +157,7 @@ class BuiltinProvider : CompletionProvider {
                 id = "builtin_$name",
                 label = name,
                 kind = CompletionKind.BUILTIN,
-                detail = info.signature,
+                detail = "$name(${info.parameters.joinToString(", ")})",
                 documentation = info.documentation,
                 parameters = info.parameters.map { param ->
                     ParameterInfo(name = param)

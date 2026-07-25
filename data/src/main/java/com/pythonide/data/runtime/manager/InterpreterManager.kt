@@ -48,8 +48,7 @@ class InterpreterManager @Inject constructor(
         config: InterpreterConfig = InterpreterConfig()
     ): PythonInterpreter = mutex.withLock {
         val interpreter = PythonInterpreter(
-            name = "Python ${_interpreters.value.size + 1}",
-            config = config
+            name = "Python ${_interpreters.value.size + 1}"
         )
 
         val session = InterpreterSession(
@@ -192,7 +191,7 @@ class InterpreterManager @Inject constructor(
             variables = mutableMapOf(),
             interpreter = session.interpreter.copy(
                 state = InterpreterState.IDLE,
-                created_at = System.currentTimeMillis(),
+                createdAt = System.currentTimeMillis(),
                 lastActiveAt = System.currentTimeMillis()
             )
         )

@@ -342,14 +342,14 @@ class IntelliSenseEngine {
     
     private fun findFunctionInIndex(name: String): CompletionItem? {
         return symbolIndex.values.flatten().find { 
-            it.name == name && (it.kind == com.pythonide.domain.model.intellisense.CompletionKind.FUNCTION ||
+            it.label == name && (it.kind == com.pythonide.domain.model.intellisense.CompletionKind.FUNCTION ||
                                it.kind == com.pythonide.domain.model.intellisense.CompletionKind.METHOD)
         }
     }
     
     fun addToIndex(entries: List<CompletionItem>) {
         entries.forEach { entry ->
-            val key = entry.name.firstOrNull()?.lowercase() ?: "_"
+            val key = entry.label.firstOrNull()?.lowercase() ?: "_"
             val existing = symbolIndex[key] ?: emptyList()
             symbolIndex[key] = existing + entry
         }

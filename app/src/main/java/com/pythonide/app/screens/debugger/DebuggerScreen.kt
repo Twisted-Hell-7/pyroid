@@ -31,7 +31,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -461,7 +461,8 @@ private fun VariableItem(
         }
 
         if (isExpanded && variable.children != null) {
-            variable.children.forEach { child ->
+            val children = variable.children!!
+            children.forEach { child ->
                 VariableItem(
                     variable = child,
                     isExpanded = false,

@@ -61,6 +61,8 @@ dependencies {
 
     implementation(libs.datastore.preferences)
 
+    implementation(libs.okhttp)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
 }

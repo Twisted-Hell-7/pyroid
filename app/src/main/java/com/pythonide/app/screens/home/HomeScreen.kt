@@ -39,7 +39,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.Package
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
@@ -111,7 +111,7 @@ fun HomeScreen(
                 },
                 actions = {
                     IconButton(onClick = onNavigateToPackages) {
-                        Icon(Icons.Default.Package, contentDescription = "Packages")
+                        Icon(Icons.Default.GridView, contentDescription = "Packages")
                     }
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")

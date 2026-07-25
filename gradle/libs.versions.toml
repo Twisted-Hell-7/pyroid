@@ -29,6 +29,9 @@ room = "2.6.1"
 # DataStore
 datastore = "1.1.1"
 
+# OkHttp
+okhttp = "4.12.0"
+
 # Testing
 junit = "4.13.2"
 junitExt = "1.2.1"
@@ -81,6 +84,9 @@ room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 
 # DataStore
 datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
+
+# OkHttp
+okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }

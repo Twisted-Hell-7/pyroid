@@ -144,7 +144,9 @@ class CodeEditorViewModel @Inject constructor(
     
     private fun updateHighlightedLines(state: EditorState) {
         val lines = state.lines.map { line ->
-            syntaxHighlighter.highlightLine(line)
+            syntaxHighlighter.highlightLine(line).map { (text, color) ->
+                text to androidx.compose.ui.graphics.Color(color)
+            }
         }
         _highlightedLines.value = lines
     }
@@ -321,8 +323,10 @@ class CodeEditorViewModel @Inject constructor(
         
         if (matches.isNotEmpty()) {
             val firstMatch = matches.first()
-            editorStateManager.moveCursor(firstMatch.start.line, firstMatch.start.column)
-            editorStateManager.select(firstMatch.start, firstMatch.end)
+            viewModelScope.launch {
+                editorStateManager.moveCursor(firstMatch.start.line, firstMatch.start.column)
+                editorStateManager.select(firstMatch.start, firstMatch.end)
+            }
         }
     }
     
@@ -333,8 +337,10 @@ class CodeEditorViewModel @Inject constructor(
         val matchIndex = state.matches.indexOf(match)
         _searchState.update { it.copy(currentMatchIndex = matchIndex) }
         
-        editorStateManager.moveCursor(match.start.line, match.start.column)
-        editorStateManager.select(match.start, match.end)
+        viewModelScope.launch {
+            editorStateManager.moveCursor(match.start.line, match.start.column)
+            editorStateManager.select(match.start, match.end)
+        }
     }
     
     fun findPrevious() {
@@ -344,8 +350,10 @@ class CodeEditorViewModel @Inject constructor(
         val matchIndex = state.matches.indexOf(match)
         _searchState.update { it.copy(currentMatchIndex = matchIndex) }
         
-        editorStateManager.moveCursor(match.start.line, match.start.column)
-        editorStateManager.select(match.start, match.end)
+        viewModelScope.launch {
+            editorStateManager.moveCursor(match.start.line, match.start.column)
+            editorStateManager.select(match.start, match.end)
+        }
     }
     
     fun replace(replacement: String) {
@@ -353,8 +361,10 @@ class CodeEditorViewModel @Inject constructor(
         val currentMatch = state.matches.getOrNull(state.currentMatchIndex) ?: return
         
         val newState = searchHandler.replace(_editorState.value, currentMatch, replacement)
-        editorStateManager.initialize(newState.content)
-        editorStateManager.moveCursor(newState.cursorPosition.line, newState.cursorPosition.column)
+        viewModelScope.launch {
+            editorStateManager.initialize(newState.content)
+            editorStateManager.moveCursor(newState.cursorPosition.line, newState.cursorPosition.column)
+        }
         
         search(_searchState.value.query, state.isCaseSensitive, state.isRegex, state.isWholeWord)
         updateActiveTabContent()
@@ -372,8 +382,10 @@ class CodeEditorViewModel @Inject constructor(
             state.isWholeWord
         )
         
-        editorStateManager.initialize(newState.content)
-        editorStateManager.moveCursor(0, 0)
+        viewModelScope.launch {
+            editorStateManager.initialize(newState.content)
+            editorStateManager.moveCursor(0, 0)
+        }
         
         search(_searchState.value.query, state.isCaseSensitive, state.isRegex, state.isWholeWord)
         updateActiveTabContent()
@@ -382,15 +394,19 @@ class CodeEditorViewModel @Inject constructor(
     
     fun closeSearch() {
         _searchState.update { it.copy(isOpen = false, matches = emptyList(), query = "") }
-        editorStateManager.select(
-            editorStateManager.getCurrentState().cursorPosition,
-            editorStateManager.getCurrentState().cursorPosition
-        )
+        viewModelScope.launch {
+            editorStateManager.select(
+                editorStateManager.getCurrentState().cursorPosition,
+                editorStateManager.getCurrentState().cursorPosition
+            )
+        }
     }
     
     fun goToLine(lineNumber: Int) {
         val line = (lineNumber - 1).coerceIn(0, _editorState.value.lines.size - 1)
-        editorStateManager.moveCursor(line, 0)
+        viewModelScope.launch {
+            editorStateManager.moveCursor(line, 0)
+        }
     }
     
     fun setWordWrap(enabled: Boolean) {
@@ -534,11 +550,11 @@ class CodeEditorViewModel @Inject constructor(
     
     private fun markModified() {
         _isModified.value = true
-        val activeTab = tabManager.getActiveTab()
-        if (activeTab != null) {
-            val projectId = _currentProjectId.value
-            if (projectId != null) {
-                viewModelScope.launch {
+        viewModelScope.launch {
+            val activeTab = tabManager.getActiveTab()
+            if (activeTab != null) {
+                val projectId = _currentProjectId.value
+                if (projectId != null) {
                     projectRepository.updateSessionFile(projectId, activeTab.id, true)
                 }
             }
@@ -610,7 +626,7 @@ class CodeEditorViewModel @Inject constructor(
                         if (existingTab == null) {
                             try {
                                 val content = java.io.File(sessionFile.path).readText()
-                                tabManager.createTab(sessionFile.name, content, sessionFile.fileId)
+                                tabManager.createTab(sessionFile.name, content)
                             } catch (_: Exception) {}
                         }
                     }
@@ -704,7 +720,7 @@ class CodeEditorViewModel @Inject constructor(
             val currentOffset = state.cursorPosition.toOffset(state.content)
             val prefix = state.content.substring(triggerOffset, currentOffset)
             
-            val newText = item.text.substring(prefix.length)
+            val newText = item.insertText.substring(prefix.length)
             editorStateManager.insertText(newText)
             updateActiveTabContent()
             markModified()

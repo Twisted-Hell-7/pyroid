@@ -262,6 +262,114 @@ except Exception as e:
         inputQueue.clear()
     }
 
+    data class CommandResult(
+        val exitCode: Int,
+        val output: String,
+        val error: String
+    )
+
+    suspend fun executeCommand(command: String): CommandResult = withContext(Dispatchers.IO) {
+        if (!isInitialized.get()) {
+            initialize()
+        }
+
+        val pythonBin = pythonPath.get() ?: return@withContext CommandResult(
+            exitCode = 1,
+            output = "",
+            error = "Python runtime not initialized"
+        )
+
+        try {
+            val processBuilder = ProcessBuilder(pythonBin, "-c", command)
+            processBuilder.environment()["PYTHONIOENCODING"] = "utf-8"
+            processBuilder.redirectErrorStream(false)
+
+            val process = processBuilder.start()
+            val stdout = process.inputStream.bufferedReader().readText()
+            val stderr = process.errorStream.bufferedReader().readText()
+            val completed = process.waitFor(30, TimeUnit.SECONDS)
+            val exitCode = if (completed) process.exitValue() else -1
+
+            CommandResult(
+                exitCode = exitCode,
+                output = stdout.trim(),
+                error = stderr.trim()
+            )
+        } catch (e: Exception) {
+            CommandResult(
+                exitCode = 1,
+                output = "",
+                error = e.message ?: "Unknown error"
+            )
+        }
+    }
+
+    suspend fun executeCommandWithCallback(
+        command: String,
+        onLine: (String) -> Unit
+    ): CommandResult = withContext(Dispatchers.IO) {
+        if (!isInitialized.get()) {
+            initialize()
+        }
+
+        val pythonBin = pythonPath.get() ?: return@withContext CommandResult(
+            exitCode = 1,
+            output = "",
+            error = "Python runtime not initialized"
+        )
+
+        try {
+            val processBuilder = ProcessBuilder(pythonBin, "-c", command)
+            processBuilder.environment()["PYTHONIOENCODING"] = "utf-8"
+            processBuilder.redirectErrorStream(false)
+
+            val process = processBuilder.start()
+            val outputBuilder = StringBuilder()
+            val errorBuilder = StringBuilder()
+
+            val stdoutThread = Thread {
+                val reader = process.inputStream.bufferedReader()
+                var line: String?
+                while (reader.readLine().also { line = it } != null) {
+                    val output = line ?: ""
+                    outputBuilder.appendLine(output)
+                    onLine(output)
+                }
+            }
+
+            val stderrThread = Thread {
+                val reader = process.errorStream.bufferedReader()
+                var line: String?
+                while (reader.readLine().also { line = it } != null) {
+                    val error = line ?: ""
+                    errorBuilder.appendLine(error)
+                    onLine(error)
+                }
+            }
+
+            stdoutThread.start()
+            stderrThread.start()
+
+            val completed = process.waitFor(30, TimeUnit.SECONDS)
+            val exitCode = if (completed) process.exitValue() else -1
+
+            stdoutThread.join(1000)
+            stderrThread.join(1000)
+
+            CommandResult(
+                exitCode = exitCode,
+                output = outputBuilder.toString().trim(),
+                error = errorBuilder.toString().trim()
+            )
+        } catch (e: Exception) {
+            CommandResult(
+                exitCode = 1,
+                output = "",
+                error = e.message ?: "Unknown error"
+            )
+        }
+    }
+
     fun getPythonVersion(): String? {
         return try {
             val pythonBin = pythonPath.get() ?: return null

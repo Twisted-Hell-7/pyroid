@@ -74,7 +74,7 @@ class FileManagerViewModel @Inject constructor(
             try {
                 val roots = repository.getStorageRoots().getOrNull() ?: emptyList()
                 _state.update { it.copy(isLoading = false) }
-                navigateTo(_config.value.defaultStoragePath)
+                navigateTo("/storage/emulated/0")
             } catch (e: Exception) {
                 _state.update { it.copy(error = e.message, isLoading = false) }
             }

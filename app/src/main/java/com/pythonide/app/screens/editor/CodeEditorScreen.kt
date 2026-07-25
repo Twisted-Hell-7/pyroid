@@ -39,12 +39,10 @@ import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.CopyAll
 import androidx.compose.material.icons.filled.FindReplace
 import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.GoToLine
 import androidx.compose.material.icons.filled.Redo
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SelectAll
-import androidx.compose.material.icons.filled.SplitScreen
 import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material.icons.filled.ZoomIn
 import androidx.compose.material.icons.filled.ZoomOut
@@ -62,6 +60,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -99,6 +98,12 @@ import com.pythonide.app.screens.editor.intellisense.CompletionPopup
 import com.pythonide.domain.model.debugger.DebugState
 import com.pythonide.domain.model.editor.EditorTheme
 import com.pythonide.domain.model.editor.SplitMode
+import com.pythonide.app.ui.theme.background
+import com.pythonide.app.ui.theme.foreground
+import com.pythonide.app.ui.theme.lineNumberColor
+import com.pythonide.app.ui.theme.lineNumberBackground
+import com.pythonide.app.ui.theme.currentLineColor
+import com.pythonide.app.ui.theme.functionColor
 import com.pythonide.domain.model.editor.Tab
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -168,7 +173,7 @@ fun CodeEditorScreen(
                         Icon(Icons.Default.Search, "Search")
                     }
                     IconButton(onClick = { showGoToLine = true }) {
-                        Icon(Icons.Default.GoToLine, "Go to Line")
+                        Icon(Icons.Default.FindReplace, "Go to Line")
                     }
                     IconButton(onClick = { viewModel.saveCurrentFile() }) {
                         Icon(Icons.Default.Save, "Save")
@@ -452,7 +457,7 @@ private fun TabBar(
         LazyColumn(
             modifier = Modifier.weight(1f),
             state = rememberLazyListState(),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             itemsIndexed(tabs) { _, tab ->
                 TabItem(
@@ -828,7 +833,7 @@ private fun StatusBar(
                 modifier = Modifier.size(20.dp)
             ) {
                 Icon(
-                    Icons.Default.SplitScreen,
+                    Icons.Default.FolderOpen,
                     contentDescription = "Split",
                     tint = theme.foreground,
                     modifier = Modifier.size(14.dp)

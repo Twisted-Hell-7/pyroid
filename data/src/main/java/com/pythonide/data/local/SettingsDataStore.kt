@@ -22,7 +22,9 @@ import com.pythonide.domain.model.settings.TimeoutSettings
 import com.pythonide.domain.repository.SettingsRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.take
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -278,11 +280,4 @@ class SettingsDataStore @Inject constructor(
     override suspend fun resetConsole() { context.dataStore.edit { prefs -> listOf(Keys.CONSOLE_FONT_SIZE, Keys.CONSOLE_FONT_FAMILY, Keys.SHOW_TIMESTAMPS, Keys.ENABLE_ANSI_COLORS, Keys.MAX_CONSOLE_LINES, Keys.AUTO_SCROLL, Keys.CONSOLE_WORD_WRAP).forEach { prefs.remove(it) } } }
     override suspend fun resetPackages() { context.dataStore.edit { prefs -> listOf(Keys.AUTO_UPDATE_PACKAGES, Keys.SHOW_PRERELEASE, Keys.CACHE_TIMEOUT, Keys.MAX_CONCURRENT_DOWNLOADS, Keys.VERIFY_SIGNATURES).forEach { prefs.remove(it) } } }
     override suspend fun resetBackup() { context.dataStore.edit { prefs -> listOf(Keys.AUTO_BACKUP_ENABLED, Keys.AUTO_BACKUP_INTERVAL, Keys.MAX_BACKUPS, Keys.BACKUP_SETTINGS, Keys.BACKUP_PROJECTS, Keys.BACKUP_PACKAGES, Keys.LAST_BACKUP_TIMESTAMP).forEach { prefs.remove(it) } } }
-
-    private suspend fun <T> Flow<T>.first(): T {
-        var result: T? = null
-        this.collect { result = it }
-        @Suppress("UNCHECKED_CAST")
-        return result as T
-    }
 }

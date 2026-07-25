@@ -51,11 +51,11 @@ class TerminalViewModel @Inject constructor(
             try {
                 val interpreter = runtimeRepository.createInterpreter()
                 _currentInterpreter.value = interpreter
-                addSystemEntry("Python ${interpreter.pythonVersion} • ${interpreter.state.name}")
-                addSystemEntry("Type 'help()' for help, 'exit()' to exit")
-                addSystemEntry("---")
+                addSystemEntry(content = "Python ${interpreter.pythonVersion} • ${interpreter.state.name}")
+                addSystemEntry(content = "Type 'help()' for help, 'exit()' to exit")
+                addSystemEntry(content = "---")
             } catch (e: Exception) {
-                addErrorEntry("Failed to initialize interpreter: ${e.message}")
+                addErrorEntry(content = "Failed to initialize interpreter: ${e.message}")
             }
         }
     }
@@ -151,7 +151,7 @@ class TerminalViewModel @Inject constructor(
                 entries = state.entries + (newTerminal.id to emptyList())
             )
         }
-        addSystemEntry("New terminal created")
+        addSystemEntry(content = "New terminal created")
     }
 
     fun switchTerminal(terminalId: String) {
@@ -187,9 +187,11 @@ class TerminalViewModel @Inject constructor(
 
     fun stopExecution() {
         val interpreterId = _currentInterpreter.value?.id ?: return
-        runtimeRepository.stopExecution(interpreterId)
+        viewModelScope.launch {
+            runtimeRepository.stopExecution(interpreterId)
+        }
         _state.update { it.copy(isExecuting = false) }
-        addSystemEntry("Execution stopped")
+        addSystemEntry(content = "Execution stopped")
     }
 
     fun restartInterpreter() {
@@ -199,10 +201,10 @@ class TerminalViewModel @Inject constructor(
             try {
                 runtimeRepository.restartInterpreter(interpreterId)
                 clearTerminal()
-                addSystemEntry("Interpreter restarted")
+                addSystemEntry(content = "Interpreter restarted")
                 initializeInterpreter()
             } catch (e: Exception) {
-                addErrorEntry("Failed to restart interpreter: ${e.message}")
+                addErrorEntry(content = "Failed to restart interpreter: ${e.message}")
             }
         }
     }
@@ -227,7 +229,7 @@ class TerminalViewModel @Inject constructor(
         val clip = android.content.ClipData.newPlainText("Terminal Logs", text)
         clipboard.setPrimaryClip(clip)
 
-        addSystemEntry("Logs copied to clipboard")
+        addSystemEntry(content = "Logs copied to clipboard")
     }
 
     fun saveLogsToFile() {
@@ -252,9 +254,9 @@ class TerminalViewModel @Inject constructor(
                 val fileName = "terminal_${System.currentTimeMillis()}.log"
                 val file = File(dir, fileName)
                 file.writeText(text)
-                addSystemEntry("Logs saved to: ${file.absolutePath}")
+                addSystemEntry(content = "Logs saved to: ${file.absolutePath}")
             } catch (e: Exception) {
-                addErrorEntry("Failed to save logs: ${e.message}")
+                addErrorEntry(content = "Failed to save logs: ${e.message}")
             }
         }
     }
@@ -288,7 +290,7 @@ class TerminalViewModel @Inject constructor(
         addEntry(terminalId, entry)
     }
 
-    private fun addErrorEntry(terminalId: String, content: String) {
+    private fun addErrorEntry(terminalId: String = _state.value.activeTerminalId, content: String) {
         val segments = if (_state.value.config.enableColors) {
             AnsiParser.parse(content)
         } else {

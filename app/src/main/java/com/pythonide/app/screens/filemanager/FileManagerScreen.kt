@@ -3,6 +3,7 @@ package com.pythonide.app.screens.filemanager
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -609,6 +610,7 @@ private fun FileList(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun FileListItem(
     item: FileManagerItem,
@@ -686,6 +688,7 @@ private fun FileListItem(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun FileGridItem(
     item: FileManagerItem,
@@ -742,6 +745,7 @@ private fun FileGridItem(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun FileCompactItem(
     item: FileManagerItem,
@@ -855,6 +859,7 @@ private fun ProjectList(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ProjectCard(
     project: Project,

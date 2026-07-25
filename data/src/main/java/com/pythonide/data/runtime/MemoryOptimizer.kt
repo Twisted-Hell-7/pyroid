@@ -68,7 +68,7 @@ class MemoryOptimizer @Inject constructor(
     private fun updateMemoryState() {
         val runtime = Runtime.getRuntime()
         val usedHeap = runtime.totalMemory() - runtime.freeMemory()
-        val maxHeap = runtime.maxHeapSize()
+        val maxHeap = runtime.maxMemory()
         val nativeHeap = Debug.getNativeHeapAllocatedSize()
         val cacheMemory = CacheManager.getTotalMemoryUsage()
         val usagePercent = (usedHeap.toFloat() / maxHeap * 100).toInt()
@@ -123,9 +123,7 @@ class MemoryOptimizer @Inject constructor(
                 )
             },
             nativeHeap = Debug.getNativeHeapAllocatedSize(),
-            dalvikPss = Debug.getMemoryInfo(Debug.MemoryInfo()).let {
-                it.totalPss.toLong()
-            }
+            dalvikPss = Debug.MemoryInfo().also { Debug.getMemoryInfo(it) }.totalPss.toLong()
         )
     }
 
