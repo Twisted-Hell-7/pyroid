@@ -23,7 +23,7 @@ class FileWatcher(
     
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var watchJob: Job? = null
-    private val changes = mutableListOf<FileChange>()
+    private val changes = java.util.concurrent.CopyOnWriteArrayList<FileChange>()
     
     data class FileChange(
         val path: Path,

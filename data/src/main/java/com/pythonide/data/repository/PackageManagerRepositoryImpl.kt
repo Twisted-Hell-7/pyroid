@@ -894,10 +894,8 @@ class PackageManagerRepositoryImpl @Inject constructor(
                     break
                 }
 
-                currentInstallJob = kotlinx.coroutines.coroutineScope {
-                    launch {
-                        executeInstallTask(task)
-                    }
+                currentInstallJob = launch {
+                    executeInstallTask(task)
                 }
             }
 

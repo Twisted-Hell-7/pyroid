@@ -225,7 +225,10 @@ class TerminalViewModel @Inject constructor(
         }
 
         val clipboard = getApplication<Application>().getSystemService(Application.CLIPBOARD_SERVICE)
-            as android.content.ClipboardManager
+            as? android.content.ClipboardManager ?: run {
+            addSystemEntry(content = "Clipboard not available")
+            return
+        }
         val clip = android.content.ClipData.newPlainText("Terminal Logs", text)
         clipboard.setPrimaryClip(clip)
 

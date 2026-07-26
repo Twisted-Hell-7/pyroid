@@ -9,9 +9,10 @@ import com.pythonide.domain.model.editor.Selection
 
 class ClipboardHandler(private val context: Context) {
     
-    private val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    private val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
     
     fun copy(state: EditorState): Boolean {
+        val cm = clipboardManager ?: return false
         val selection = state.selection ?: return false
         val normalized = selection.normalize()
         
@@ -21,7 +22,7 @@ class ClipboardHandler(private val context: Context) {
         val text = state.content.substring(startOffset, endOffset)
         
         val clip = ClipData.newPlainText("code", text)
-        clipboardManager.setPrimaryClip(clip)
+        cm.setPrimaryClip(clip)
         
         return true
     }
@@ -52,7 +53,8 @@ class ClipboardHandler(private val context: Context) {
     }
     
     fun paste(state: EditorState): EditorState {
-        val clip = clipboardManager.primaryClip ?: return state
+        val cm = clipboardManager ?: return state
+        val clip = cm.primaryClip ?: return state
         if (clip.itemCount == 0) return state
         
         val text = clip.getItemAt(0).text?.toString() ?: return state
@@ -104,11 +106,12 @@ class ClipboardHandler(private val context: Context) {
     }
     
     fun copyLine(state: EditorState): Boolean {
+        val cm = clipboardManager ?: return false
         val position = state.cursorPosition
         val line = state.lines.getOrNull(position.line) ?: return false
         
         val clip = ClipData.newPlainText("code", line + "\n")
-        clipboardManager.setPrimaryClip(clip)
+        cm.setPrimaryClip(clip)
         
         return true
     }

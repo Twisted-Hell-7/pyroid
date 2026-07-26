@@ -70,9 +70,6 @@ class ProjectRepositoryImpl @Inject constructor(
         backupsDir.mkdirs()
         sessionsDir.mkdirs()
         templatesDir.mkdirs()
-        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
-            initializeDefaultTemplates()
-        }
     }
 
     private suspend fun initializeDefaultTemplates() {
@@ -566,7 +563,13 @@ class ProjectRepositoryImpl @Inject constructor(
         }
     }
 
+    private var templatesInitialized = false
+
     override suspend fun getTemplates(): Flow<List<ProjectTemplate>> {
+        if (!templatesInitialized) {
+            initializeDefaultTemplates()
+            templatesInitialized = true
+        }
         return templateDao.getAllTemplates().map { entities ->
             entities.map { templateEntityToDomain(it) }
         }

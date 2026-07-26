@@ -35,11 +35,14 @@ import com.pythonide.domain.model.project.AutoSaveConfig
 import com.pythonide.domain.repository.FileRepository
 import com.pythonide.domain.repository.ProjectRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -182,7 +185,8 @@ class CodeEditorViewModel @Inject constructor(
                 editorStateManager.insertText(bracketResult.text)
                 if (bracketResult.cursorOffset != 0) {
                     val currentPos = editorStateManager.getCurrentState().cursorPosition
-                    val newOffset = currentPos.toOffset(editorStateManager.getCurrentState().content) + bracketResult.cursorOffset
+                    val currentOffset = currentPos.toOffset(editorStateManager.getCurrentState().content)
+                    val newOffset = (currentOffset + bracketResult.cursorOffset).coerceAtLeast(0)
                     editorStateManager.moveCursorToOffset(newOffset)
                 }
             } else {
@@ -564,10 +568,9 @@ class CodeEditorViewModel @Inject constructor(
     
     fun loadFile(fileId: String) {
         viewModelScope.launch {
-            fileRepository.getFileById(fileId).collect { file ->
-                if (file != null) {
-                    tabManager.createTab(file.name, file.content)
-                }
+            val file = fileRepository.getFileById(fileId).first()
+            if (file != null) {
+                tabManager.createTab(file.name, file.content)
             }
         }
     }
@@ -643,12 +646,11 @@ class CodeEditorViewModel @Inject constructor(
     fun restoreCursorPosition(fileId: String) {
         val projectId = _currentProjectId.value ?: return
         viewModelScope.launch {
-            projectRepository.getSession(projectId).collect { session ->
-                if (session != null) {
-                    val cursorPos = session.cursorPositions[fileId]
-                    if (cursorPos != null) {
-                        editorStateManager.moveCursor(cursorPos.line, cursorPos.column)
-                    }
+            val session = projectRepository.getSession(projectId).first()
+            if (session != null) {
+                val cursorPos = session.cursorPositions[fileId]
+                if (cursorPos != null) {
+                    editorStateManager.moveCursor(cursorPos.line, cursorPos.column)
                 }
             }
         }
@@ -719,6 +721,7 @@ class CodeEditorViewModel @Inject constructor(
             val state = _editorState.value
             val triggerOffset = _intelliSenseState.value.triggerOffset
             val currentOffset = state.cursorPosition.toOffset(state.content)
+            if (triggerOffset < 0 || triggerOffset > currentOffset || currentOffset > state.content.length) return@launch
             val prefix = state.content.substring(triggerOffset, currentOffset)
             
             val newText = item.insertText.substring(prefix.length)
@@ -750,7 +753,7 @@ class CodeEditorViewModel @Inject constructor(
         stopAutoSave()
         val projectId = _currentProjectId.value
         if (projectId != null && autoSaveConfig.saveOnClose) {
-            viewModelScope.launch {
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                 performAutoSave(projectId)
                 projectRepository.saveProject(projectId)
                 projectRepository.closeProject(projectId)

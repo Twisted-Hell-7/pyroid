@@ -61,7 +61,14 @@ class BracketHandler {
     
     private fun handleClosingBracket(line: String, column: Int, char: Char): BracketResult {
         if (column < line.length && line[column] == char) {
-            return BracketResult(char.toString(), 1)
+            val openBracket = bracketPairs.entries.find { it.value == char }?.key
+            if (openBracket != null) {
+                val before = line.substring(0, column)
+                val depth = before.count { it == openBracket } - before.count { it == char }
+                if (depth > 0) {
+                    return BracketResult(char.toString(), 1)
+                }
+            }
         }
         return BracketResult(char.toString(), 0)
     }

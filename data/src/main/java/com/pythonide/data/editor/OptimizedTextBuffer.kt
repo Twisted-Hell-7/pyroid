@@ -114,7 +114,22 @@ class OptimizedTextBuffer(
         val chunk = chunks[chunkIndex]?.toMutableList() ?: return@withContext
         
         chunk.add(indexInChunk + 1, content)
-        chunks[chunkIndex] = chunk
+        
+        if (chunk.size > chunkSize) {
+            val split = chunk.subList(chunkSize, chunk.size).toList()
+            chunk.subList(chunkSize, chunk.size).clear()
+            chunks[chunkIndex] = chunk
+            val nextChunkIndex = chunkIndex + 1
+            val existingNext = chunks[nextChunkIndex]
+            if (existingNext != null) {
+                val merged = (split + existingNext).toMutableList()
+                chunks[nextChunkIndex] = merged
+            } else {
+                chunks[nextChunkIndex] = split.toMutableList()
+            }
+        } else {
+            chunks[chunkIndex] = chunk
+        }
         
         totalLines++
         lineCount.value = totalLines

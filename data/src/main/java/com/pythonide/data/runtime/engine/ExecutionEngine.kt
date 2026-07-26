@@ -172,14 +172,14 @@ class ExecutionEngine @Inject constructor(
         }
     }
 
-    private fun checkMemoryPressure() {
+    private suspend fun checkMemoryPressure() {
         val runtime = Runtime.getRuntime()
         val usedMemory = runtime.totalMemory() - runtime.freeMemory()
         val maxMemory = runtime.maxMemory()
 
         if (usedMemory > maxMemory * 0.8) {
             System.gc()
-            Thread.sleep(100)
+            kotlinx.coroutines.delay(100)
         }
     }
 

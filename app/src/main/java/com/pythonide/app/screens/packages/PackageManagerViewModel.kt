@@ -381,10 +381,12 @@ class PackageManagerViewModel @Inject constructor(
             }
             try {
                 val progressFlow = packageManagerRepository.batchInstall(request)
+                val taskIds = packages.mapNotNull { (packageName, _) ->
+                    val task = _state.value.installQueue.find { q -> q.packageName == packageName }
+                    task?.let { packageName to it.id }
+                }.toMap()
                 progressFlow.collect { progress ->
-                    val taskId = packages.firstOrNull { it.first == progress.packageName }?.let {
-                        _state.value.installQueue.find { q -> q.packageName == progress.packageName }?.id
-                    } ?: return@collect
+                    val taskId = taskIds[progress.packageName] ?: return@collect
                     trackInstallProgress(taskId, progress.packageName, flowOf(progress))
                 }
             } catch (e: Exception) {

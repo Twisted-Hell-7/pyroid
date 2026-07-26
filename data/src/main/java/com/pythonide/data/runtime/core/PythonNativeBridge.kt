@@ -99,7 +99,12 @@ class PythonNativeBridge @Inject constructor(
     }
 
     private fun wrapCodeForExecution(code: String, stdout: StringBuilder, stderr: StringBuilder): String {
-        val escapedCode = code.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")
+        val escapedCode = code
+            .replace("\\", "\\\\")
+            .replace("\"", "\\\"")
+            .replace("\n", "\\n")
+            .replace("\r", "\\r")
+            .replace("\t", "\\t")
         return """
 import sys
 import io

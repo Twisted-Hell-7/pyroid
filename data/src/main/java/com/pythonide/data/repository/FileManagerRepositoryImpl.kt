@@ -50,11 +50,60 @@ class FileManagerRepositoryImpl @Inject constructor(
         try {
             if (favoritesFile.exists()) {
                 val json = favoritesFile.readText()
-                // Parse favorites from JSON
+                val arr = org.json.JSONArray(json)
+                val loaded = (0 until arr.length()).mapNotNull { i ->
+                    val obj = arr.getJSONObject(i)
+                    FileManagerItem(
+                        id = obj.optString("id", ""),
+                        name = obj.optString("name", ""),
+                        path = obj.optString("path", ""),
+                        parentPath = obj.optString("parentPath", null),
+                        type = FileType.valueOf(obj.optString("type", "FILE")),
+                        size = obj.optLong("size", 0),
+                        lastModified = obj.optLong("lastModified", 0),
+                        isHidden = obj.optBoolean("isHidden", false),
+                        isReadOnly = obj.optBoolean("isReadOnly", false),
+                        extension = obj.optString("extension", null),
+                        permissions = FilePermissions(
+                            read = obj.optBoolean("canRead", true),
+                            write = obj.optBoolean("canWrite", true),
+                            execute = obj.optBoolean("canExecute", false)
+                        ),
+                        source = StorageSource.valueOf(obj.optString("source", "INTERNAL"))
+                    )
+                }
+                favorites.value = loaded
             }
             if (recentFile.exists()) {
                 val json = recentFile.readText()
-                // Parse recent files from JSON
+                val arr = org.json.JSONArray(json)
+                val loaded = (0 until arr.length()).mapNotNull { i ->
+                    val obj = arr.getJSONObject(i)
+                    val itemObj = obj.getJSONObject("item")
+                    RecentFile(
+                        item = FileManagerItem(
+                            id = itemObj.optString("id", ""),
+                            name = itemObj.optString("name", ""),
+                            path = itemObj.optString("path", ""),
+                            parentPath = itemObj.optString("parentPath", null),
+                            type = FileType.valueOf(itemObj.optString("type", "FILE")),
+                            size = itemObj.optLong("size", 0),
+                            lastModified = itemObj.optLong("lastModified", 0),
+                            isHidden = itemObj.optBoolean("isHidden", false),
+                            isReadOnly = itemObj.optBoolean("isReadOnly", false),
+                            extension = itemObj.optString("extension", null),
+                            permissions = FilePermissions(
+                                read = itemObj.optBoolean("canRead", true),
+                                write = itemObj.optBoolean("canWrite", true),
+                                execute = itemObj.optBoolean("canExecute", false)
+                            ),
+                            source = StorageSource.valueOf(itemObj.optString("source", "INTERNAL"))
+                        ),
+                        accessedAt = obj.optLong("accessedAt", System.currentTimeMillis()),
+                        accessCount = obj.optInt("accessCount", 1)
+                    )
+                }
+                recentFiles.value = loaded
             }
             loadProjects()
         } catch (e: Exception) {
@@ -393,7 +442,31 @@ class FileManagerRepositoryImpl @Inject constructor(
     }
 
     private fun persistFavorites() {
-        // Persist to JSON file
+        try {
+            val arr = org.json.JSONArray()
+            favorites.value.forEach { item ->
+                val obj = org.json.JSONObject().apply {
+                    put("id", item.id)
+                    put("name", item.name)
+                    put("path", item.path)
+                    put("parentPath", item.parentPath ?: org.json.JSONObject.NULL)
+                    put("type", item.type.name)
+                    put("size", item.size)
+                    put("lastModified", item.lastModified)
+                    put("isHidden", item.isHidden)
+                    put("isReadOnly", item.isReadOnly)
+                    put("extension", item.extension ?: org.json.JSONObject.NULL)
+                    put("canRead", item.permissions.read)
+                    put("canWrite", item.permissions.write)
+                    put("canExecute", item.permissions.execute)
+                    put("source", item.source.name)
+                }
+                arr.put(obj)
+            }
+            favoritesFile.writeText(arr.toString())
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     override suspend fun getRecentFiles(): Flow<List<RecentFile>> = recentFiles
@@ -422,7 +495,36 @@ class FileManagerRepositoryImpl @Inject constructor(
     }
 
     private fun persistRecentFiles() {
-        // Persist to JSON file
+        try {
+            val arr = org.json.JSONArray()
+            recentFiles.value.forEach { recent ->
+                val itemObj = org.json.JSONObject().apply {
+                    put("id", recent.item.id)
+                    put("name", recent.item.name)
+                    put("path", recent.item.path)
+                    put("parentPath", recent.item.parentPath ?: org.json.JSONObject.NULL)
+                    put("type", recent.item.type.name)
+                    put("size", recent.item.size)
+                    put("lastModified", recent.item.lastModified)
+                    put("isHidden", recent.item.isHidden)
+                    put("isReadOnly", recent.item.isReadOnly)
+                    put("extension", recent.item.extension ?: org.json.JSONObject.NULL)
+                    put("canRead", recent.item.permissions.read)
+                    put("canWrite", recent.item.permissions.write)
+                    put("canExecute", recent.item.permissions.execute)
+                    put("source", recent.item.source.name)
+                }
+                val obj = org.json.JSONObject().apply {
+                    put("item", itemObj)
+                    put("accessedAt", recent.accessedAt)
+                    put("accessCount", recent.accessCount)
+                }
+                arr.put(obj)
+            }
+            recentFile.writeText(arr.toString())
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     override suspend fun getProjects(): Flow<List<Project>> = projects
