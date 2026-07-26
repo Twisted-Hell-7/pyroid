@@ -700,7 +700,6 @@ private fun CodeContent(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
         ) {
             itemsIndexed(lines) { lineIndex, line ->
                 val highlighted = highlightedLines.getOrElse(lineIndex) { emptyList() }

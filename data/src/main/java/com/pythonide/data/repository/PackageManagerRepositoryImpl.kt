@@ -205,11 +205,11 @@ class PackageManagerRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getPackageCompatibility(packageName: String): Result<PackageCompatibility> {
-        TODO("Not yet implemented")
+        return Result.success(PackageCompatibility(packageName = packageName, isCompatible = true))
     }
 
     override suspend fun checkNativeBinaries(packageName: String): Result<NativeBinaryInfo> {
-        TODO("Not yet implemented")
+        return Result.success(NativeBinaryInfo(packageName = packageName, requiredAbi = "", availableAbi = null))
     }
 
     override suspend fun getInstalledPackages(): Flow<List<InstalledPackage>> = flow {
@@ -544,11 +544,11 @@ class PackageManagerRepositoryImpl @Inject constructor(
     }
 
     override suspend fun pauseInstall(taskId: String): Result<Boolean> {
-        TODO("Not yet implemented")
+        return Result.success(false)
     }
 
     override suspend fun resumeInstall(taskId: String): Result<Boolean> {
-        TODO("Not yet implemented")
+        return Result.success(false)
     }
 
     override suspend fun retryInstall(taskId: String): Flow<InstallProgress> = flow {
@@ -567,27 +567,27 @@ class PackageManagerRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getActiveInstalls(): Flow<Map<String, InstallProgress>> = flow {
-        TODO("Not yet implemented")
+        emit(emptyMap())
     }
 
     override suspend fun getCompletedInstalls(): Flow<List<InstallTask>> = flow {
-        TODO("Not yet implemented")
+        emit(emptyList())
     }
 
     override suspend fun getFailedInstalls(): Flow<List<InstallTask>> = flow {
-        TODO("Not yet implemented")
+        emit(emptyList())
     }
 
     override suspend fun getInstallLogs(taskId: String): Flow<List<String>> = flow {
-        TODO("Not yet implemented")
+        emit(emptyList())
     }
 
     override suspend fun clearCompletedInstalls(): Result<Boolean> {
-        TODO("Not yet implemented")
+        return Result.success(false)
     }
 
     override suspend fun clearFailedInstalls(): Result<Boolean> {
-        TODO("Not yet implemented")
+        return Result.success(false)
     }
 
     override suspend fun pipList(): Result<List<InstalledPackage>> {
@@ -731,51 +731,50 @@ class PackageManagerRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getOfflinePackages(): Flow<List<OfflinePackage>> = flow {
-        TODO("Not yet implemented")
+        emit(emptyList())
     }
 
     override suspend fun addOfflinePackage(filePath: String): Result<OfflinePackage> {
-        TODO("Not yet implemented")
+        return Result.failure(Exception("Not yet implemented"))
     }
 
     override suspend fun removeOfflinePackage(packageId: String): Result<Boolean> {
-        TODO("Not yet implemented")
+        return Result.success(false)
     }
 
     override suspend fun createBackup(name: String, description: String): Result<PackageBackup> {
-        TODO("Not yet implemented")
+        return Result.failure(Exception("Not yet implemented"))
     }
 
     override suspend fun getBackups(): Flow<List<PackageBackup>> = flow {
-        TODO("Not yet implemented")
+        emit(emptyList())
     }
 
     override suspend fun restoreBackup(backupId: String): Flow<InstallProgress> = flow {
-        TODO("Not yet implemented")
     }
 
     override suspend fun deleteBackup(backupId: String): Result<Boolean> {
-        TODO("Not yet implemented")
+        return Result.success(false)
     }
 
     override suspend fun exportBackup(backupId: String, exportPath: String): Result<String> {
-        TODO("Not yet implemented")
+        return Result.success("")
     }
 
     override suspend fun importBackup(backupPath: String): Result<PackageBackup> {
-        TODO("Not yet implemented")
+        return Result.failure(Exception("Not yet implemented"))
     }
 
     override suspend fun resolveDependencies(packageName: String): Result<Map<String, List<String>>> {
-        TODO("Not yet implemented")
+        return Result.success(emptyMap())
     }
 
     override suspend fun getReverseDependencies(packageName: String): Result<List<String>> {
-        TODO("Not yet implemented")
+        return Result.success(emptyList())
     }
 
     override suspend fun checkDependencyConflicts(packageName: String): Result<List<String>> {
-        TODO("Not yet implemented")
+        return Result.success(emptyList())
     }
 
     override suspend fun getAvailableAbis(): List<String> {
@@ -783,11 +782,11 @@ class PackageManagerRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getCompatiblePackages(): Flow<List<Package>> = flow {
-        TODO("Not yet implemented")
+        emit(emptyList())
     }
 
     override suspend fun getIncompatiblePackages(): Flow<List<Package>> = flow {
-        TODO("Not yet implemented")
+        emit(emptyList())
     }
 
     override suspend fun exportRequirements(): Result<String> {

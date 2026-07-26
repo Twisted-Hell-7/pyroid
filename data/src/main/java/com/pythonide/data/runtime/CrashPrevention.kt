@@ -29,6 +29,7 @@ class CrashPrevention @Inject constructor() {
     private val crashHistory = ConcurrentLinkedQueue<CrashEvent>()
     private val errorCount = AtomicInteger(0)
     private val isWatchdogActive = AtomicBoolean(false)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var watchdogJob: Job? = null
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -88,7 +89,7 @@ class CrashPrevention @Inject constructor() {
         if (isWatchdogActive.compareAndSet(false, true)) {
             _watchdogState.value = WatchdogState.Active
 
-            watchdogJob = CoroutineScope(Dispatchers.Default).launch {
+            watchdogJob = scope.launch {
                 while (isActive && isWatchdogActive.get()) {
                     checkResources()
                     delay(watchdogConfig.checkIntervalMs)
@@ -101,6 +102,7 @@ class CrashPrevention @Inject constructor() {
         isWatchdogActive.set(false)
         watchdogJob?.cancel()
         watchdogJob = null
+        scope.cancel()
         _watchdogState.value = WatchdogState.Inactive
     }
 

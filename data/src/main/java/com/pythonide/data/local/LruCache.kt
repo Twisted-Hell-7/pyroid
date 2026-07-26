@@ -15,7 +15,7 @@ class LruCache<K, V>(
     private data class CacheEntry<V>(
         val value: V,
         val createdAt: Long = System.currentTimeMillis(),
-        var lastAccessedAt: Long = System.currentTimeMillis()
+        @Volatile var lastAccessedAt: Long = System.currentTimeMillis()
     )
 
     fun get(key: K): V? {
@@ -54,6 +54,7 @@ class LruCache<K, V>(
         accessOrder.clear()
     }
 
+    @Synchronized
     private fun evictIfNeeded() {
         while (cache.size > maxSize) {
             val oldestKey = accessOrder.entries

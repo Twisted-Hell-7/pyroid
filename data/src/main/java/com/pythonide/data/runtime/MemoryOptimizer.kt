@@ -28,6 +28,7 @@ class MemoryOptimizer @Inject constructor(
 
     private val isMonitoring = AtomicBoolean(false)
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var monitoringJob: Job? = null
 
     private val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
@@ -50,7 +51,7 @@ class MemoryOptimizer @Inject constructor(
 
     fun startMonitoring(intervalMs: Long = 5000) {
         if (isMonitoring.compareAndSet(false, true)) {
-            monitoringJob = CoroutineScope(Dispatchers.Default).launch {
+            monitoringJob = scope.launch {
                 while (isActive && isMonitoring.get()) {
                     updateMemoryState()
                     delay(intervalMs)
@@ -63,6 +64,7 @@ class MemoryOptimizer @Inject constructor(
         isMonitoring.set(false)
         monitoringJob?.cancel()
         monitoringJob = null
+        scope.cancel()
     }
 
     private fun updateMemoryState() {

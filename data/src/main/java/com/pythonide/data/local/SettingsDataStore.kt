@@ -181,19 +181,91 @@ class SettingsDataStore @Inject constructor(
     override suspend fun setBackupPackages(backup: Boolean) { context.dataStore.edit { it[Keys.BACKUP_PACKAGES] = backup } }
     override suspend fun setLastBackupTimestamp(timestamp: Long) { context.dataStore.edit { it[Keys.LAST_BACKUP_TIMESTAMP] = timestamp } }
 
-    override suspend fun getThemeSettings(): ThemeSettings = ThemeSettings(
-        themeMode = context.dataStore.data.map { try { ThemeMode.valueOf(it[Keys.THEME_MODE] ?: ThemeMode.SYSTEM.name) } catch (e: Exception) { ThemeMode.SYSTEM } }.let { ThemeMode.SYSTEM },
-        useDynamicColors = context.dataStore.data.map { it[Keys.DYNAMIC_COLORS] ?: true }.let { true },
-        useAmoledBlack = false,
-        editorTheme = "DEFAULT"
-    )
+    override suspend fun getThemeSettings(): ThemeSettings {
+        val prefs = context.dataStore.data.first()
+        return ThemeSettings(
+            themeMode = try { ThemeMode.valueOf(prefs[Keys.THEME_MODE] ?: ThemeMode.SYSTEM.name) } catch (e: Exception) { ThemeMode.SYSTEM },
+            useDynamicColors = prefs[Keys.DYNAMIC_COLORS] ?: true,
+            useAmoledBlack = prefs[Keys.AMOLED_BLACK] ?: false,
+            editorTheme = prefs[Keys.EDITOR_THEME] ?: "DEFAULT"
+        )
+    }
 
-    override suspend fun getFontSettings(): FontSettings = FontSettings()
-    override suspend fun getTimeoutSettings(): TimeoutSettings = TimeoutSettings()
-    override suspend fun getEditorSettings(): EditorSettingsState = EditorSettingsState()
-    override suspend fun getConsoleSettings(): ConsoleSettings = ConsoleSettings()
-    override suspend fun getPackageSettings(): PackageSettings = PackageSettings()
-    override suspend fun getBackupSettings(): BackupSettings = BackupSettings()
+    override suspend fun getFontSettings(): FontSettings {
+        val prefs = context.dataStore.data.first()
+        return FontSettings(
+            fontSize = prefs[Keys.FONT_SIZE] ?: 14,
+            fontFamily = try { FontFamily.valueOf(prefs[Keys.FONT_FAMILY] ?: FontFamily.MONOSPACE.name) } catch (e: Exception) { FontFamily.MONOSPACE },
+            lineHeight = prefs[Keys.LINE_HEIGHT] ?: 1.5f
+        )
+    }
+
+    override suspend fun getTimeoutSettings(): TimeoutSettings {
+        val prefs = context.dataStore.data.first()
+        return TimeoutSettings(
+            executionTimeoutMs = prefs[Keys.EXECUTION_TIMEOUT] ?: 30_000L,
+            debugTimeoutMs = prefs[Keys.DEBUG_TIMEOUT] ?: 60_000L,
+            autoSaveIntervalMs = prefs[Keys.AUTO_SAVE_INTERVAL] ?: 30_000L
+        )
+    }
+
+    override suspend fun getEditorSettings(): EditorSettingsState {
+        val prefs = context.dataStore.data.first()
+        return EditorSettingsState(
+            showLineNumbers = prefs[Keys.SHOW_LINE_NUMBERS] ?: true,
+            wordWrap = prefs[Keys.WORD_WRAP] ?: true,
+            highlightCurrentLine = prefs[Keys.HIGHLIGHT_CURRENT_LINE] ?: true,
+            autoIndent = prefs[Keys.AUTO_INDENT] ?: true,
+            smartIndent = prefs[Keys.SMART_INDENT] ?: true,
+            autoBrackets = prefs[Keys.AUTO_BRACKETS] ?: true,
+            autoQuotes = prefs[Keys.AUTO_QUOTES] ?: true,
+            tabSize = prefs[Keys.TAB_SIZE] ?: 4,
+            indentWithTabs = prefs[Keys.INDENT_WITH_TABS] ?: false,
+            showWhitespace = prefs[Keys.SHOW_WHITESPACE] ?: false,
+            showEndOfFile = prefs[Keys.SHOW_END_OF_FILE] ?: false,
+            bracketPairColorization = prefs[Keys.BRACKET_PAIR_COLORIZATION] ?: true,
+            minimap = prefs[Keys.MINIMAP] ?: false,
+            stickyScroll = prefs[Keys.STICKY_SCROLL] ?: true,
+            fontSize = prefs[Keys.EDITOR_FONT_SIZE] ?: 14
+        )
+    }
+
+    override suspend fun getConsoleSettings(): ConsoleSettings {
+        val prefs = context.dataStore.data.first()
+        return ConsoleSettings(
+            fontSize = prefs[Keys.CONSOLE_FONT_SIZE] ?: 14,
+            fontFamily = try { FontFamily.valueOf(prefs[Keys.CONSOLE_FONT_FAMILY] ?: FontFamily.MONOSPACE.name) } catch (e: Exception) { FontFamily.MONOSPACE },
+            showTimestamps = prefs[Keys.SHOW_TIMESTAMPS] ?: true,
+            enableAnsiColors = prefs[Keys.ENABLE_ANSI_COLORS] ?: true,
+            maxLines = prefs[Keys.MAX_CONSOLE_LINES] ?: 10000,
+            autoScroll = prefs[Keys.AUTO_SCROLL] ?: true,
+            wordWrap = prefs[Keys.CONSOLE_WORD_WRAP] ?: true
+        )
+    }
+
+    override suspend fun getPackageSettings(): PackageSettings {
+        val prefs = context.dataStore.data.first()
+        return PackageSettings(
+            autoUpdatePackages = prefs[Keys.AUTO_UPDATE_PACKAGES] ?: false,
+            showPrerelease = prefs[Keys.SHOW_PRERELEASE] ?: false,
+            cacheTimeoutMinutes = prefs[Keys.CACHE_TIMEOUT] ?: 60,
+            maxConcurrentDownloads = prefs[Keys.MAX_CONCURRENT_DOWNLOADS] ?: 3,
+            verifySignatures = prefs[Keys.VERIFY_SIGNATURES] ?: true
+        )
+    }
+
+    override suspend fun getBackupSettings(): BackupSettings {
+        val prefs = context.dataStore.data.first()
+        return BackupSettings(
+            autoBackupEnabled = prefs[Keys.AUTO_BACKUP_ENABLED] ?: true,
+            autoBackupIntervalMs = prefs[Keys.AUTO_BACKUP_INTERVAL] ?: 86_400_000L,
+            maxBackups = prefs[Keys.MAX_BACKUPS] ?: 5,
+            backupSettings = prefs[Keys.BACKUP_SETTINGS] ?: true,
+            backupProjects = prefs[Keys.BACKUP_PROJECTS] ?: true,
+            backupPackages = prefs[Keys.BACKUP_PACKAGES] ?: false,
+            lastBackupTimestamp = prefs[Keys.LAST_BACKUP_TIMESTAMP] ?: 0L
+        )
+    }
 
     override suspend fun exportSettings(): String {
         val prefs = context.dataStore.data.first()

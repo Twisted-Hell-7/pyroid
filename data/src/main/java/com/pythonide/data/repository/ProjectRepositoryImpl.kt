@@ -29,12 +29,14 @@ import com.pythonide.domain.model.project.TemplateIcon
 import com.pythonide.domain.repository.ProjectRepository
 import com.pythonide.domain.repository.ProjectStats
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -68,10 +70,12 @@ class ProjectRepositoryImpl @Inject constructor(
         backupsDir.mkdirs()
         sessionsDir.mkdirs()
         templatesDir.mkdirs()
-        initializeDefaultTemplates()
+        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+            initializeDefaultTemplates()
+        }
     }
 
-    private fun initializeDefaultTemplates() {
+    private suspend fun initializeDefaultTemplates() {
         val defaultTemplates = listOf(
             ProjectTemplate(
                 id = "blank",
@@ -210,9 +214,7 @@ class ProjectRepositoryImpl @Inject constructor(
                 requirementsContent = template.requirementsContent,
                 isBuiltIn = template.isBuiltIn
             )
-            kotlinx.coroutines.runBlocking {
-                templateDao.insertTemplate(entity)
-            }
+            templateDao.insertTemplate(entity)
         }
     }
 

@@ -23,6 +23,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import android.net.Uri
 import com.pythonide.app.screens.editor.CodeEditorScreen
 import com.pythonide.app.screens.filemanager.FileManagerScreen
 import com.pythonide.app.screens.home.HomeScreen
@@ -43,7 +44,7 @@ sealed class Screen(val route: String) {
     data object Home : Screen("home")
     data object Editor : Screen("editor/{fileId}") {
         fun createRoute(fileId: String? = null): String {
-            return if (fileId != null) "editor/$fileId" else "editor/new"
+            return if (fileId != null) "editor/${Uri.encode(fileId)}" else "editor/new"
         }
     }
     data object Terminal : Screen("terminal")
@@ -164,7 +165,7 @@ fun PythonIDENavHost(
                         popEnterTransition = { NavTransitions.popEnter },
                         popExitTransition = { NavTransitions.popExit }
                     ) { backStackEntry ->
-                        val fileId = backStackEntry.arguments?.getString("fileId")
+                        val fileId = backStackEntry.arguments?.getString("fileId")?.let { Uri.decode(it) }
                         CodeEditorScreen(
                             fileId = fileId,
                             onNavigateBack = {

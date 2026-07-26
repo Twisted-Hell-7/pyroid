@@ -42,7 +42,7 @@ fun isTablet(): Boolean {
     val diagonal = kotlin.math.sqrt(
         (config.screenWidthDp.toDouble().pow(2) + config.screenHeightDp.toDouble().pow(2))
     ).toFloat()
-    return diagonal >= 7.0f
+    return diagonal >= 600f
 }
 
 private fun Double.pow(n: Int): Double {

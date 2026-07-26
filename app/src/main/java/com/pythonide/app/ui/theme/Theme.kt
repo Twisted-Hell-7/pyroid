@@ -276,7 +276,7 @@ fun PythonIDETheme(
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
-            val window = (view.context as android.app.Activity).window
+            val window = (view.context as? android.app.Activity)?.window ?: return@SideEffect
             window.statusBarColor = android.graphics.Color.TRANSPARENT
             window.navigationBarColor = android.graphics.Color.TRANSPARENT
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !isDarkTheme

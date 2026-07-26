@@ -29,6 +29,7 @@ class SecureStorage @Inject constructor(
     private val cacheDir: File
     private val trackedFiles = ConcurrentHashMap<String, SecureFileInfo>()
     private val totalBytesWritten = AtomicLong(0)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var cleanupJob: Job? = null
 
     sealed class StorageState {
@@ -328,14 +329,14 @@ class SecureStorage @Inject constructor(
     }
 
     private fun updateStats() {
-        CoroutineScope(Dispatchers.Default).launch {
+        scope.launch {
             _storageStats.value = getStorageStats()
         }
     }
 
     fun startAutoCleanup() {
         if (config.enableAutoCleanup) {
-            cleanupJob = CoroutineScope(Dispatchers.IO).launch {
+            cleanupJob = scope.launch {
                 while (isActive) {
                     delay(config.cleanupIntervalMs)
                     cleanupExpiredFiles()
@@ -347,6 +348,7 @@ class SecureStorage @Inject constructor(
     fun stopAutoCleanup() {
         cleanupJob?.cancel()
         cleanupJob = null
+        scope.cancel()
     }
 
     fun updateConfig(newConfig: StorageConfig) {

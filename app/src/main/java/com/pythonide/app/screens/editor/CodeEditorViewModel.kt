@@ -176,7 +176,8 @@ class CodeEditorViewModel @Inject constructor(
                 editorStateManager.deleteSelection()
             }
             
-            val bracketResult = bracketHandler.handleCharacter(state, text.first())
+            val firstChar = text.firstOrNull() ?: return@launch
+            val bracketResult = bracketHandler.handleCharacter(state, firstChar)
             if (bracketResult != null) {
                 editorStateManager.insertText(bracketResult.text)
                 if (bracketResult.cursorOffset != 0) {
@@ -185,7 +186,7 @@ class CodeEditorViewModel @Inject constructor(
                     editorStateManager.moveCursorToOffset(newOffset)
                 }
             } else {
-                val indentResult = indentationHandler.autoIndentOnCharacter(state, text.first())
+                val indentResult = indentationHandler.autoIndentOnCharacter(state, firstChar)
                 if (indentResult != null) {
                     editorStateManager.insertText(indentResult)
                 } else {

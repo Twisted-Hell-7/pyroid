@@ -21,6 +21,7 @@ class FileWatcher(
     private val fileChanges = MutableStateFlow<List<FileChange>>(emptyList())
     val fileChangesState: StateFlow<List<FileChange>> = fileChanges.asStateFlow()
     
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var watchJob: Job? = null
     private val changes = mutableListOf<FileChange>()
     
@@ -37,7 +38,7 @@ class FileWatcher(
     fun startWatching(directories: List<String>) {
         if (watchService == null) return
         
-        watchJob = CoroutineScope(Dispatchers.IO).launch {
+        watchJob = scope.launch {
             directories.forEach { dir ->
                 val path = Paths.get(dir)
                 if (Files.exists(path) && Files.isDirectory(path)) {
@@ -100,6 +101,7 @@ class FileWatcher(
         }
         watchedPaths.clear()
         watchService?.close()
+        scope.cancel()
     }
     
     fun getRecentChanges(count: Int = 10): List<FileChange> {
