@@ -141,6 +141,8 @@ python-ide/
 | Core | AndroidX Core KTX | 1.15.0 |
 | Lifecycle | AndroidX Lifecycle | 2.8.7 |
 | Testing | JUnit | 4.13.2 |
+| Testing | MockK | 1.13.13 |
+| Testing | Turbine | 1.2.0 |
 
 ## Getting Started
 
@@ -169,15 +171,45 @@ git clone https://github.com/Twisted-Hell-7/pyroid.git
 adb install app/build/outputs/apk/debug/app-debug.apk
 ```
 
+### Run Tests
+
+```bash
+./gradlew :data:testDebugUnitTest :domain:testDebugUnitTest
+```
+
+## Testing
+
+**1,036 unit tests** across data and domain modules, all passing.
+
+| Module | Tests | Coverage |
+|---|---|---|
+| `data` | 925 | Editor, Runtime, IntelliSense, Debugger, Terminal, Security |
+| `domain` | 111 | Model data classes, enums, serialization |
+
+### Test Categories
+
+- **Editor** -- bracket handling, undo/redo, search/replace, syntax highlighting, tab management, file watching, text buffer chunking
+- **Runtime** -- sandbox security, resource limits, crash prevention, exception recovery, concurrency stress, memory optimization
+- **IntelliSense** -- completion providers, diagnostics, background indexer, symbol search, quick fixes
+- **Debugger** -- breakpoints, stepping, variable inspection, watch expressions, protocol handling
+- **Terminal** -- ANSI parser, color codes, 256-color support
+- **Security** -- path traversal, sensitive path protection, archive extraction, credential protection, TOCTOU prevention
+
+### Running Tests
+
+```bash
+./gradlew :data:testDebugUnitTest :domain:testDebugUnitTest
+```
+
 ## Build Commands
 
 | Command | Description |
 |---|---|
 | `./gradlew assembleDebug` | Build debug APK |
 | `./gradlew assembleRelease` | Build release APK |
-| `./gradlew test` | Run unit tests |
+| `./gradlew :data:testDebugUnitTest` | Run data module tests |
+| `./gradlew :domain:testDebugUnitTest` | Run domain module tests |
 | `./gradlew lint` | Run Android lint |
-| `./gradlew :data:compileDebugKotlin` | Compile data module only |
 
 ## Supported Android Versions
 
