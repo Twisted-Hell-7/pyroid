@@ -165,7 +165,10 @@ class EditorStateManager {
 
     suspend fun selectAll() = mutex.withLock {
         val currentState = _state.value
-        if (currentState.lines.isEmpty()) return@withLock
+        if (currentState.content.isEmpty()) {
+            _state.update { it.copy(selection = null) }
+            return@withLock
+        }
         
         val lastLine = currentState.lines.size - 1
         val lastColumn = currentState.lines.last().length

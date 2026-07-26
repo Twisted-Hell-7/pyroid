@@ -113,9 +113,3 @@ graphify-out/
 
 # OpenCode
 .opencode/
-
-# Test files (not needed in production)
-app/src/test/
-app/src/androidTest/
-data/src/test/
-data/src/androidTest/

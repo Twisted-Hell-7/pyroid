@@ -119,16 +119,26 @@ class BracketHandler {
             ?: return null
         
         var depth = 0
-        val range = if (isOpening) position until content.length else 0..position
-        val direction = if (isOpening) 1 else -1
-        
-        for (i in range step direction) {
-            val c = content[i]
-            when {
-                c == char -> depth++
-                c == target -> {
-                    depth--
-                    if (depth == 0) return i
+        if (isOpening) {
+            for (i in position until content.length) {
+                val c = content[i]
+                when {
+                    c == char -> depth++
+                    c == target -> {
+                        depth--
+                        if (depth == 0) return i
+                    }
+                }
+            }
+        } else {
+            for (i in position downTo 0) {
+                val c = content[i]
+                when {
+                    c == char -> depth++
+                    c == target -> {
+                        depth--
+                        if (depth == 0) return i
+                    }
                 }
             }
         }
