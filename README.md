@@ -1,6 +1,6 @@
 <div align="center">
 
-# Python IDE for Android
+# Pyroid
 
 **A fully offline, feature-complete Python IDE for Android -- built entirely in Kotlin with Jetpack Compose.**
 
@@ -15,7 +15,7 @@
 
 ## What is this?
 
-Python IDE for Android is a complete development environment that runs entirely on your Android device -- no internet connection required. It bundles a real **CPython 3.11 runtime** (via [Chaquopy](https://chaquo.com/chaquopy/)) that executes actual Python code offline, includes a real code editor with IntelliSense, a pdb-based debugger, a package manager, and a full terminal -- all packaged in a modern Material 3 interface.
+Pyroid is a complete development environment that runs entirely on your Android device -- no internet connection required. It bundles a real **CPython 3.11 runtime** (via [Chaquopy](https://chaquo.com/chaquopy/)) that executes actual Python code offline, includes a real code editor with IntelliSense, a pdb-based debugger, a package manager, and a full terminal -- all packaged in a modern Material 3 interface.
 
 ## Features
 
@@ -154,7 +154,7 @@ python-ide/
 
 ```bash
 # Clone the repository
-git clone https://github.com/dev-saswat-07/python-ide.git
+git clone https://github.com/Twisted-Hell-7/pyroid.git
 
 # Debug build
 ./gradlew assembleDebug
