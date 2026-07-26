@@ -67,11 +67,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.pythonide.app.ui.layout.isCompact
+import com.pythonide.app.R
 import com.pythonide.domain.model.PythonFile
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -193,11 +196,11 @@ private fun EmptyState(
                     .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    Icons.Default.Code,
-                    contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                androidx.compose.foundation.Image(
+                    painter = painterResource(id = R.drawable.logo),
+                    contentDescription = "Python IDE Logo",
+                    modifier = Modifier.size(80.dp),
+                    contentScale = ContentScale.Fit
                 )
             }
 

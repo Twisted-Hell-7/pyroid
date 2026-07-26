@@ -44,8 +44,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.pythonide.app.R
 import kotlinx.coroutines.launch
 
 data class DrawerItem(
@@ -97,11 +100,11 @@ fun AppNavigationDrawer(
                                 .background(MaterialTheme.colorScheme.primary),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                Icons.Default.Code,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.size(32.dp)
+                            androidx.compose.foundation.Image(
+                                painter = painterResource(id = R.drawable.logo),
+                                contentDescription = "Python IDE Logo",
+                                modifier = Modifier.size(40.dp),
+                                contentScale = ContentScale.Fit
                             )
                         }
                         Spacer(modifier = Modifier.height(12.dp))
