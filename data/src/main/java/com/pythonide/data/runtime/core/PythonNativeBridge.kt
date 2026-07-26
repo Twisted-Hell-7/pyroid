@@ -56,10 +56,10 @@ class PythonNativeBridge @Inject constructor(
 
             val wrappedCode = wrapCodeForExecution(code, stdoutCapture, stderrCapture)
 
-            val runpy = py.getModule("runpy")
             val codeObj = builtins.callAttr("compile", wrappedCode, "<string>", "exec")
 
-            val globals = py.getBuiltins()
+            val globals = py.getBuiltins().callAttr("dict")
+            globals["__builtins__"] = py.getBuiltins()
             globals.callAttr("exec", codeObj, globals)
 
             val stdout = stdoutCapture.toString().trim()
@@ -196,7 +196,9 @@ finally:
 
             val wrappedCode = wrapCodeForExecution(command, stdoutCapture, stderrCapture)
             val codeObj = builtins.callAttr("compile", wrappedCode, "<string>", "exec")
-            builtins.callAttr("exec", codeObj, builtins)
+            val globals = py.getBuiltins().callAttr("dict")
+            globals["__builtins__"] = py.getBuiltins()
+            globals.callAttr("exec", codeObj, globals)
 
             CommandResult(
                 exitCode = 0,
@@ -226,7 +228,9 @@ finally:
 
             val wrappedCode = wrapCodeForExecution(command, StringBuilder(), StringBuilder())
             val codeObj = builtins.callAttr("compile", wrappedCode, "<string>", "exec")
-            builtins.callAttr("exec", codeObj, builtins)
+            val globals = py.getBuiltins().callAttr("dict")
+            globals["__builtins__"] = py.getBuiltins()
+            globals.callAttr("exec", codeObj, globals)
 
             onLine(command)
             CommandResult(exitCode = 0, output = "", error = "")
