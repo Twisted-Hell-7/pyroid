@@ -14,8 +14,8 @@ android {
         applicationId = "com.pythonide.app"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 2
-        versionName = "1.0.2"
+        versionCode = 3
+        versionName = "1.0.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -24,7 +24,7 @@ android {
         }
 
         buildConfigField("String", "APP_NAME", "\"Python IDE\"")
-        buildConfigField("String", "APP_VERSION", "\"1.0.2\"")
+        buildConfigField("String", "APP_VERSION", "\"1.0.3\"")
 
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")
