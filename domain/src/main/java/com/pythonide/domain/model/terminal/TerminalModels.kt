@@ -66,18 +66,18 @@ enum class AnsiColor(val code: Int, val hex: Long) {
                 code < 0 -> DEFAULT
                 code < 16 -> entries.firstOrNull { it.code == code } ?: DEFAULT
                 code < 232 -> {
-                    // 6x6x6 color cube — map to nearest of 16 base colors by luminance/chroma.
+                    // 6x6x6 color cube — map to nearest base color.
                     val idx = code - 16
                     val r = (idx / 36) * 51
                     val g = ((idx % 36) / 6) * 51
                     val b = (idx % 6) * 51
                     nearestBase(r, g, b)
-                }()
+                }
                 code < 256 -> {
                     // Grayscale ramp — map by luminance.
                     val v = 8 + (code - 232) * 10
                     nearestBase(v, v, v)
-                }()
+                }
                 else -> DEFAULT
             }
         }
