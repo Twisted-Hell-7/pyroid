@@ -168,11 +168,11 @@ class DebuggerModelsTest {
     @Test
     fun testDebugSessionDefaults() {
         val session = DebugSession(
-            interpreterId = "py3.11",
+            interpreterId = "py3.14",
             filePath = "test.py"
         )
         assertTrue(session.id.isNotEmpty())
-        assertEquals("py3.11", session.interpreterId)
+        assertEquals("py3.14", session.interpreterId)
         assertEquals("test.py", session.filePath)
         assertTrue(session.breakpoints.isEmpty())
         assertEquals(DebugState.IDLE, session.state)
@@ -248,12 +248,12 @@ class DebuggerModelsTest {
 
     @Test
     fun testDebugCommandWire() {
-        assertEquals("continue", DebugCommand.CONTINUE.wire)
-        assertEquals("step_into", DebugCommand.STEP_INTO.wire)
-        assertEquals("step_over", DebugCommand.STEP_OVER.wire)
-        assertEquals("step_out", DebugCommand.STEP_OUT.wire)
-        assertEquals("stop", DebugCommand.STOP.wire)
-        assertEquals("inspect", DebugCommand.INSPECT.wire)
+        assertEquals("continue", DebugCommand.Continue.wire)
+        assertEquals("step_into", DebugCommand.StepInto.wire)
+        assertEquals("step_over", DebugCommand.StepOver.wire)
+        assertEquals("step_out", DebugCommand.StepOut.wire)
+        assertEquals("stop", DebugCommand.Stop.wire)
+        assertEquals("inspect", DebugCommand.Inspect.wire)
     }
 
     @Test

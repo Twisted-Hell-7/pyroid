@@ -75,7 +75,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -93,7 +93,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.pythonide.domain.model.filemanager.FileManagerItem
 import com.pythonide.domain.model.filemanager.FileManagerState
 import com.pythonide.domain.model.filemanager.FileType
-import com.pythonide.domain.model.filemanager.Project
+import com.pythonide.domain.model.project.Project
 import com.pythonide.domain.model.filemanager.SortBy
 import com.pythonide.domain.model.filemanager.StorageSource
 import com.pythonide.domain.model.filemanager.ViewMode
@@ -108,14 +108,14 @@ fun FileManagerScreen(
     onOpenFile: (String) -> Unit,
     viewModel: FileManagerViewModel = hiltViewModel()
 ) {
-    val state by viewModel.state.collectAsState()
-    val config by viewModel.config.collectAsState()
-    val showCreateDialog by viewModel.showCreateDialog.collectAsState()
-    val showRenameDialog by viewModel.showRenameDialog.collectAsState()
-    val showPropertiesDialog by viewModel.showPropertiesDialog.collectAsState()
-    val showProjectDialog by viewModel.showProjectDialog.collectAsState()
-    val selectedItem by viewModel.selectedItem.collectAsState()
-    val itemProperties by viewModel.itemProperties.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val config by viewModel.config.collectAsStateWithLifecycle()
+    val showCreateDialog by viewModel.showCreateDialog.collectAsStateWithLifecycle()
+    val showRenameDialog by viewModel.showRenameDialog.collectAsStateWithLifecycle()
+    val showPropertiesDialog by viewModel.showPropertiesDialog.collectAsStateWithLifecycle()
+    val showProjectDialog by viewModel.showProjectDialog.collectAsStateWithLifecycle()
+    val selectedItem by viewModel.selectedItem.collectAsStateWithLifecycle()
+    val itemProperties by viewModel.itemProperties.collectAsStateWithLifecycle()
 
     var showSortMenu by remember { mutableStateOf(false) }
     var showViewMenu by remember { mutableStateOf(false) }

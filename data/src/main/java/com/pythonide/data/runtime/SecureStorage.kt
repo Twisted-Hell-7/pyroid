@@ -234,11 +234,25 @@ class SecureStorage @Inject constructor(
             file.listFiles()?.forEach { secureDelete(it) }
         }
 
-        val length = file.length()
-        if (length > 0) {
-            val randomBytes = ByteArray(length.toInt())
-            SecureRandom().nextBytes(randomBytes)
-            file.writeBytes(randomBytes)
+        try {
+            val length = file.length()
+            if (length > 0) {
+                // Overwrite in 8KB chunks, cap at 1MB to avoid OOM / long IO on huge files.
+                val random = SecureRandom()
+                val chunk = ByteArray(8192)
+                file.outputStream().use { out ->
+                    var remaining = minOf(length, 1024 * 1024)
+                    while (remaining > 0) {
+                        val n = minOf(chunk.size.toLong(), remaining).toInt()
+                        random.nextBytes(chunk)
+                        out.write(chunk, 0, n)
+                        remaining -= n
+                    }
+                    out.flush()
+                }
+            }
+        } catch (e: Exception) {
+            // Best effort: fall through to delete
         }
 
         file.delete()
@@ -348,7 +362,6 @@ class SecureStorage @Inject constructor(
     fun stopAutoCleanup() {
         cleanupJob?.cancel()
         cleanupJob = null
-        scope.cancel()
     }
 
     fun updateConfig(newConfig: StorageConfig) {

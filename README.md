@@ -15,7 +15,7 @@
 
 ## What is this?
 
-Pyroid is a complete development environment that runs entirely on your Android device -- no internet connection required. It bundles a real **CPython 3.11 runtime** (via [Chaquopy](https://chaquo.com/chaquopy/)) that executes actual Python code offline, includes a real code editor with IntelliSense, a pdb-based debugger, a package manager, and a full terminal -- all packaged in a modern Material 3 interface.
+Pyroid is a complete development environment that runs entirely on your Android device -- no internet connection required. It bundles a real **CPython 3.14 runtime** (via [Chaquopy](https://chaquo.com/chaquopy/)) that executes actual Python code offline, includes a real code editor with IntelliSense, a pdb-based debugger, a package manager, and a full terminal -- all packaged in a modern Material 3 interface.
 
 ## Features
 
@@ -128,7 +128,7 @@ python-ide/
 | Language | Kotlin | 2.1.0 |
 | Build | Gradle Kotlin DSL + AGP | 8.11.1 / 8.7.3 |
 | Python Runtime | Chaquopy | 17.0.0 |
-| Python Version | CPython | 3.11 |
+| Python Version | CPython | 3.14 |
 | UI | Jetpack Compose | BOM 2024.12.01 |
 | Design | Material 3 | Dynamic Colors |
 | Navigation | Navigation Compose | 2.8.5 |
@@ -222,7 +222,7 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 
 ## How It Works
 
-**Python Runtime**: The app bundles a real CPython 3.11 interpreter via [Chaquopy](https://chaquo.com/chaquopy/). Python is embedded directly in the APK (~32MB) and executes code via `Python.start(AndroidPlatform(context))` -- no external binary required. Code runs in-process with full access to the Python standard library and pip packages. Supports pure Python packages and many native packages (numpy, requests, etc.) via Chaquopy's pre-built wheel mirror.
+**Python Runtime**: The app bundles a real CPython 3.14 interpreter via [Chaquopy](https://chaquo.com/chaquopy/). Python is embedded directly in the APK (~32MB) and executes code via `Python.start(AndroidPlatform(context))` -- no external binary required. Code runs in-process with full access to the Python standard library and pip packages. Supports pure Python packages and many native packages (numpy, requests, etc.) via Chaquopy's pre-built wheel mirror.
 
 **Debugger**: A custom `bdb.Bdb` subclass generates JSON events over stdout. The app sends commands (continue, step, next, return) via stdin. Breakpoints, variable inspection, and watch expressions are all handled through this protocol.
 
@@ -237,7 +237,7 @@ Chaquopy bundles pre-built wheels for many popular packages. Add packages in `da
 ```kotlin
 chaquopy {
     defaultConfig {
-        version = "3.11"
+        version = "3.14"
         pip {
             install("numpy")
             install("requests")

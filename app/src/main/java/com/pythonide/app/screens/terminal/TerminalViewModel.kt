@@ -27,6 +27,10 @@ import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
 
+private val terminalLogTimeFormat = ThreadLocal.withInitial {
+    SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+}
+
 @HiltViewModel
 class TerminalViewModel @Inject constructor(
     application: Application,
@@ -332,7 +336,7 @@ class TerminalViewModel @Inject constructor(
     }
 
     private fun formatTimestamp(timestamp: Long): String {
-        return SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(timestamp))
+        return terminalLogTimeFormat.get()!!.format(Date(timestamp))
     }
 
     override fun onCleared() {

@@ -11,7 +11,7 @@ import com.pythonide.domain.model.filemanager.FileOperation
 import com.pythonide.domain.model.filemanager.FileOperationStatus
 import com.pythonide.domain.model.filemanager.FilePermissions
 import com.pythonide.domain.model.filemanager.FileType
-import com.pythonide.domain.model.filemanager.Project
+import com.pythonide.domain.model.project.Project
 import com.pythonide.domain.model.filemanager.RecentFile
 import com.pythonide.domain.model.filemanager.StorageSource
 import com.pythonide.domain.repository.FileManagerRepository
@@ -606,7 +606,7 @@ class FileManagerRepositoryImpl @Inject constructor(
             when (operation.type) {
                 com.pythonide.domain.model.filemanager.FileOperationType.CREATE_FILE -> {
                     operation.sourcePaths.forEach { path ->
-                        createFile(path)
+                        createFile(path, ByteArray(0))
                     }
                 }
                 com.pythonide.domain.model.filemanager.FileOperationType.CREATE_DIRECTORY -> {
@@ -702,22 +702,22 @@ class FileManagerRepositoryImpl @Inject constructor(
     }
 
     override suspend fun requestSafPermission(callback: (String) -> Unit) {
-        // SAF permission request would be handled by the UI layer
+        // SAF permission request must be handled by the UI layer via ActivityResultLauncher.
+        // Kept for interface compatibility; prefer a suspending Result-based API.
+        callback("")
     }
 
     override suspend fun importFile(safUri: String, destinationPath: String): Result<FileManagerItem> = withContext(Dispatchers.IO) {
         try {
             val uri = Uri.parse(safUri)
-            val inputStream = context.contentResolver.openInputStream(uri)
-                ?: return@withContext Result.failure(Exception("Cannot open URI"))
-
             val destFile = File(destinationPath)
             destFile.parentFile?.mkdirs()
 
-            FileOutputStream(destFile).use { output ->
-                inputStream.copyTo(output)
-            }
-            inputStream.close()
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                FileOutputStream(destFile).use { output ->
+                    inputStream.copyTo(output)
+                }
+            } ?: return@withContext Result.failure(Exception("Cannot open URI"))
 
             getItem(destinationPath).map { it ?: throw Exception("Failed to import file") }
         } catch (e: Exception) {
@@ -733,13 +733,11 @@ class FileManagerRepositoryImpl @Inject constructor(
             }
 
             val uri = Uri.parse(safUri)
-            val outputStream = context.contentResolver.openOutputStream(uri)
-                ?: return@withContext Result.failure(Exception("Cannot open URI"))
-
-            file.inputStream().use { input ->
-                input.copyTo(outputStream)
-            }
-            outputStream.close()
+            context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                file.inputStream().use { input ->
+                    input.copyTo(outputStream)
+                }
+            } ?: return@withContext Result.failure(Exception("Cannot open URI"))
 
             Result.success(true)
         } catch (e: Exception) {

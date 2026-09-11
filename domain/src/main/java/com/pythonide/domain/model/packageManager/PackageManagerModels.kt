@@ -34,6 +34,7 @@ data class InstalledPackage(
     val version: String,
     val summary: String = "",
     val location: String = "",
+    val size: Long = 0,
     val requires: List<String> = emptyList(),
     val requiredBy: List<String> = emptyList(),
     val installer: String = "pip",
@@ -152,13 +153,14 @@ data class PackageManagerState(
             .filter { pkg ->
                 (searchQuery.isEmpty() || pkg.name.contains(searchQuery, ignoreCase = true) ||
                         pkg.summary.contains(searchQuery, ignoreCase = true)) &&
+                (!filterInstalled || pkg.isUpgradable || pkg.version.isNotEmpty()) &&
                 (!filterUpgradable || pkg.isUpgradable)
             }
             .sortedWith(
                 when (sortBy) {
                     PackageSortBy.NAME -> compareBy<InstalledPackage> { it.name.lowercase() }
                     PackageSortBy.VERSION -> compareBy<InstalledPackage> { it.version }
-                    PackageSortBy.SIZE -> compareBy<InstalledPackage> { it.location.length }
+                    PackageSortBy.SIZE -> compareBy<InstalledPackage> { it.size }
                 }.let { if (sortOrder == PackageSortOrder.DESCENDING) it.reversed() else it }
             )
 
@@ -270,10 +272,9 @@ sealed class ProgressState {
 }
 
 data class PackageDependency(
-    val packageName: String = "",
+    val name: String = "",
     val version: String = "",
     val dependencies: List<String> = emptyList(),
-    val name: String = packageName,
     val requiredBy: String = "",
     val versionSpec: String = "",
     val isReverseDependency: Boolean = false

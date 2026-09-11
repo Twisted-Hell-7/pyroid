@@ -13,7 +13,7 @@ import androidx.room.RoomDatabase
         AutoSaveConfigEntity::class
     ],
     version = 2,
-    exportSchema = true
+    exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun fileDao(): FileDao

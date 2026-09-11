@@ -25,6 +25,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import android.net.Uri
 import com.pythonide.app.screens.editor.CodeEditorScreen
+import com.pythonide.app.screens.debugger.DebuggerScreen
 import com.pythonide.app.screens.filemanager.FileManagerScreen
 import com.pythonide.app.screens.home.HomeScreen
 import com.pythonide.app.screens.packages.PackageManagementScreen
@@ -34,10 +35,8 @@ import com.pythonide.app.screens.settings.SettingsScreen
 import com.pythonide.app.ui.components.AppBottomNavigation
 import com.pythonide.app.ui.components.AppNavigationDrawer
 import com.pythonide.app.ui.components.AppNavigationRail
-import com.pythonide.app.ui.layout.currentWindowSize
 import com.pythonide.app.ui.layout.isCompact
 import com.pythonide.app.ui.layout.isExpanded
-import com.pythonide.app.ui.layout.isLandscape
 import com.pythonide.app.ui.components.NavTransitions
 
 sealed class Screen(val route: String) {
@@ -45,6 +44,11 @@ sealed class Screen(val route: String) {
     data object Editor : Screen("editor/{fileId}") {
         fun createRoute(fileId: String? = null): String {
             return if (fileId != null) "editor/${Uri.encode(fileId)}" else "editor/new"
+        }
+    }
+    data object Debugger : Screen("debugger/{filePath}") {
+        fun createRoute(filePath: String? = null): String {
+            return if (filePath != null) "debugger/${Uri.encode(filePath)}" else "debugger/new"
         }
     }
     data object Terminal : Screen("terminal")
@@ -71,8 +75,8 @@ fun PythonIDENavHost(
     val currentRoute = navBackStackEntry?.destination?.route
 
     val showBottomBar = currentRoute in bottomNavRoutes
-    val showRail = isExpanded() && !isLandscape() && currentRoute in bottomNavRoutes
-    val showDrawer = !isCompact() && !isLandscape()
+    val showRail = isExpanded() && currentRoute in bottomNavRoutes
+    val showDrawer = !isCompact()
 
     AppNavigationDrawer(
         currentRoute = currentRoute,
@@ -195,8 +199,8 @@ fun PythonIDENavHost(
                             onNavigateBack = {
                                 navController.popBackStack()
                             },
-                            onOpenFile = { path ->
-                                navController.navigate(Screen.Editor.createRoute(path))
+                            onOpenFile = { fileId ->
+                                navController.navigate(Screen.Editor.createRoute(fileId))
                             }
                         )
                     }
@@ -243,6 +247,27 @@ fun PythonIDENavHost(
                             onNavigateBack = {
                                 navController.popBackStack()
                             }
+                        )
+                    }
+
+                    composable(
+                        route = Screen.Debugger.route,
+                        arguments = listOf(
+                            navArgument("filePath") {
+                                type = NavType.StringType
+                                nullable = true
+                                defaultValue = null
+                            }
+                        ),
+                        enterTransition = { NavTransitions.slideIn },
+                        exitTransition = { NavTransitions.slideOut },
+                        popEnterTransition = { NavTransitions.popEnter },
+                        popExitTransition = { NavTransitions.popExit }
+                    ) { backStackEntry ->
+                        val filePath = backStackEntry.arguments?.getString("filePath")?.let { Uri.decode(it) }
+                        DebuggerScreen(
+                            filePath = filePath,
+                            onNavigateBack = { navController.popBackStack() }
                         )
                     }
                 }

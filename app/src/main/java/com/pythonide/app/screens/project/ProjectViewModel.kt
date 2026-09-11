@@ -8,10 +8,10 @@ import com.pythonide.domain.model.project.Project
 import com.pythonide.domain.model.project.ProjectBackup
 import com.pythonide.domain.model.project.ProjectMetadata
 import com.pythonide.domain.model.project.ProjectSession
+import com.pythonide.domain.model.project.ProjectStats
 import com.pythonide.domain.model.project.ProjectSortBy
 import com.pythonide.domain.model.project.ProjectSortOrder
 import com.pythonide.domain.model.project.ProjectState
-import com.pythonide.domain.repository.ProjectStats
 import com.pythonide.domain.model.project.ProjectTemplate
 import com.pythonide.domain.model.project.SaveResult
 import com.pythonide.domain.repository.ProjectRepository

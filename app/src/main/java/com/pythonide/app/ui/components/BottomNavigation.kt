@@ -26,10 +26,6 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
@@ -56,7 +52,7 @@ fun AppBottomNavigation(
         BottomNavItem("settings", "Settings", Icons.Filled.Settings, Icons.Outlined.Settings),
     )
 
-    val selectedIndex = items.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
+    val selectedIndex = items.indexOfFirst { it.route == currentRoute }.takeIf { it >= 0 }
 
     NavigationBar(
         modifier = modifier
@@ -66,7 +62,7 @@ fun AppBottomNavigation(
         tonalElevation = 8.dp
     ) {
         items.forEachIndexed { index, item ->
-            val isSelected = currentRoute == item.route
+            val isSelected = selectedIndex == index
             NavigationBarItem(
                 icon = {
                     BadgedBox(

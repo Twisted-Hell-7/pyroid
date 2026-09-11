@@ -68,7 +68,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -105,13 +105,17 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+private val terminalTimeFormat = ThreadLocal.withInitial {
+    SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TerminalScreen(
     viewModel: TerminalViewModel = hiltViewModel()
 ) {
-    val state by viewModel.state.collectAsState()
-    val interpreter by viewModel.currentInterpreter.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val interpreter by viewModel.currentInterpreter.collectAsStateWithLifecycle()
     val focusRequester = remember { FocusRequester() }
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -319,7 +323,7 @@ private fun TerminalEntryItem(
     config: TerminalConfig
 ) {
     val timestamp = remember(entry.timestamp) {
-        SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(entry.timestamp))
+        terminalTimeFormat.get()!!.format(Date(entry.timestamp))
     }
 
     Row(

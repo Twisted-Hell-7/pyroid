@@ -5,6 +5,7 @@ import com.pythonide.domain.model.project.Project
 import com.pythonide.domain.model.project.ProjectBackup
 import com.pythonide.domain.model.project.ProjectMetadata
 import com.pythonide.domain.model.project.ProjectSession
+import com.pythonide.domain.model.project.ProjectStats
 import com.pythonide.domain.model.project.ProjectTemplate
 import com.pythonide.domain.model.project.SaveResult
 import kotlinx.coroutines.flow.Flow
@@ -68,12 +69,3 @@ interface ProjectRepository {
 
     suspend fun getProjectStats(projectId: String): Result<ProjectStats>
 }
-
-data class ProjectStats(
-    val totalFiles: Int,
-    val pythonFiles: Int,
-    val totalLines: Int,
-    val totalSize: Long,
-    val lastModified: Long,
-    val dependencies: List<String>
-)

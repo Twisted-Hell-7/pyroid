@@ -19,6 +19,7 @@ class OptimizedTextBuffer(
     private val lineCount = MutableStateFlow(0)
     private val visibleLines = MutableStateFlow<List<String>>(emptyList())
     private val scrollOffset = MutableStateFlow(0)
+    @Volatile
     private var totalLines = 0
 
     val lineCountState: StateFlow<Int> = lineCount.asStateFlow()
@@ -68,13 +69,21 @@ class OptimizedTextBuffer(
 
     suspend fun getLines(start: Int, end: Int): List<String> = withContext(Dispatchers.Default) {
         val result = mutableListOf<String>()
-        val clampedEnd = minOf(end, totalLines)
-        
-        for (i in start until clampedEnd) {
-            val line = getLine(i) ?: break
-            result.add(line)
+        val clampedStart = start.coerceIn(0, totalLines)
+        val clampedEnd = minOf(end, totalLines).coerceAtLeast(clampedStart)
+
+        // Bulk chunk read without per-line context hops.
+        var i = clampedStart
+        while (i < clampedEnd) {
+            val chunkIndex = i / chunkSize
+            val indexInChunk = i % chunkSize
+            val chunk = chunks[chunkIndex] ?: break
+            val take = minOf(chunk.size - indexInChunk, clampedEnd - i)
+            if (take <= 0) break
+            result.addAll(chunk.subList(indexInChunk, indexInChunk + take))
+            i += take
         }
-        
+
         result
     }
 
@@ -108,45 +117,38 @@ class OptimizedTextBuffer(
     }
 
     suspend fun insertLine(afterLineNumber: Int, content: String) = withContext(Dispatchers.Default) {
-        val chunkIndex = afterLineNumber / chunkSize
-        val indexInChunk = afterLineNumber % chunkSize
-        
-        val chunk = chunks[chunkIndex]?.toMutableList() ?: return@withContext
-        
-        chunk.add(indexInChunk + 1, content)
-        
-        if (chunk.size > chunkSize) {
-            val split = chunk.subList(chunkSize, chunk.size).toList()
-            chunk.subList(chunkSize, chunk.size).clear()
-            chunks[chunkIndex] = chunk
-            val nextChunkIndex = chunkIndex + 1
-            val existingNext = chunks[nextChunkIndex]
-            if (existingNext != null) {
-                val merged = (split + existingNext).toMutableList()
-                chunks[nextChunkIndex] = merged
-            } else {
-                chunks[nextChunkIndex] = split.toMutableList()
-            }
-        } else {
-            chunks[chunkIndex] = chunk
-        }
-        
-        totalLines++
+        // Flatten + re-chunk to keep line numbers consistent across chunks.
+        val all = flatten()
+        val idx = (afterLineNumber + 1).coerceIn(0, all.size)
+        all.add(idx, content)
+        rechunk(all)
+
+        totalLines = all.size
         lineCount.value = totalLines
     }
 
     suspend fun deleteLine(lineNumber: Int) = withContext(Dispatchers.Default) {
-        val chunkIndex = lineNumber / chunkSize
-        val indexInChunk = lineNumber % chunkSize
-        
-        val chunk = chunks[chunkIndex]?.toMutableList() ?: return@withContext
-        
-        if (indexInChunk < chunk.size) {
-            chunk.removeAt(indexInChunk)
-            chunks[chunkIndex] = chunk
-            
-            totalLines--
-            lineCount.value = totalLines
+        val all = flatten()
+        if (lineNumber < 0 || lineNumber >= all.size) return@withContext
+        all.removeAt(lineNumber)
+        rechunk(all)
+
+        totalLines = all.size
+        lineCount.value = totalLines
+    }
+
+    private fun flatten(): MutableList<String> {
+        val all = mutableListOf<String>()
+        for (chunkIdx in chunks.keys.sorted()) {
+            chunks[chunkIdx]?.let { all.addAll(it) }
+        }
+        return all
+    }
+
+    private fun rechunk(all: List<String>) {
+        chunks.clear()
+        all.chunked(chunkSize).forEachIndexed { idx, chunk ->
+            chunks[idx] = chunk
         }
     }
 
@@ -161,7 +163,12 @@ class OptimizedTextBuffer(
     suspend fun search(query: String, caseSensitive: Boolean = false): List<Int> = withContext(Dispatchers.Default) {
         val results = mutableListOf<Int>()
         val flags = if (caseSensitive) emptySet<RegexOption>() else setOf(RegexOption.IGNORE_CASE)
-        val regex = Regex(query, flags)
+        val regex = try {
+            Regex(query, flags)
+        } catch (e: Exception) {
+            // Fall back to literal search on invalid regex.
+            Regex(Regex.escape(query), flags)
+        }
         
         for ((chunkIdx, chunk) in chunks) {
             for ((lineIdx, line) in chunk.withIndex()) {
@@ -176,7 +183,11 @@ class OptimizedTextBuffer(
 
     suspend fun replaceAll(pattern: String, replacement: String, caseSensitive: Boolean = false): Int = withContext(Dispatchers.Default) {
         val flags = if (caseSensitive) emptySet<RegexOption>() else setOf(RegexOption.IGNORE_CASE)
-        val regex = Regex(pattern, flags)
+        val regex = try {
+            Regex(pattern, flags)
+        } catch (e: Exception) {
+            Regex(Regex.escape(pattern), flags)
+        }
         var count = 0
         
         for ((chunkIdx, chunk) in chunks) {

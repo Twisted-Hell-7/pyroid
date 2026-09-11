@@ -79,7 +79,10 @@ class PythonRuntimeRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun installPackages(packages: List<String>): Boolean {
+    override suspend fun installPackages(packages: List<String>): Result<Boolean> {
+        // Validate to prevent Python string injection.
+        val pkgPattern = Regex("^[A-Za-z0-9_.-]+$")
+        if (packages.any { !pkgPattern.matches(it) }) return Result.success(false)
         return try {
             val interpreterId = interpreterManager.createInterpreter().id
             val code = buildString {
@@ -97,13 +100,13 @@ class PythonRuntimeRepositoryImpl @Inject constructor(
 
             val result = interpreterManager.executeCode(interpreterId, code)
             interpreterManager.destroyInterpreter(interpreterId)
-            result.isSuccessful
+            Result.success(result.isSuccessful)
         } catch (e: Exception) {
-            false
+            Result.failure(e)
         }
     }
 
-    override suspend fun getInstalledPackages(): List<String> {
+    override suspend fun getInstalledPackages(): Result<List<String>> {
         return try {
             val interpreterId = interpreterManager.createInterpreter().id
             val code = """
@@ -125,11 +128,13 @@ except Exception as e:
             val result = interpreterManager.executeCode(interpreterId, code)
             interpreterManager.destroyInterpreter(interpreterId)
 
-            result.stdout.lines()
-                .filter { it.isNotBlank() }
-                .map { it.trim() }
+            Result.success(
+                result.stdout.lines()
+                    .filter { it.isNotBlank() }
+                    .map { it.trim() }
+            )
         } catch (e: Exception) {
-            emptyList()
+            Result.failure(e)
         }
     }
 

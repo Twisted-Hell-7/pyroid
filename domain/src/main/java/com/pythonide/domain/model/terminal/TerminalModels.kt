@@ -4,7 +4,7 @@ import java.util.UUID
 
 data class Terminal(
     val id: String = UUID.randomUUID().toString(),
-    val name: String = "Terminal ${id.take(4)}",
+    val name: String = "Terminal",
     val createdAt: Long = System.currentTimeMillis(),
     val isActive: Boolean = true
 )
@@ -64,15 +64,44 @@ enum class AnsiColor(val code: Int, val hex: Long) {
         fun from256(code: Int): AnsiColor {
             return when {
                 code < 0 -> DEFAULT
-                code < 8 -> entries[code + 1]
-                code < 16 -> entries[code - 7]
-                else -> {
-                    val r = ((code - 16) / 36) * 51
-                    val g = (((code - 16) % 36) / 6) * 51
-                    val b = ((code - 16) % 6) * 51
-                    DEFAULT
+                code < 16 -> entries.firstOrNull { it.code == code } ?: DEFAULT
+                code < 232 -> {
+                    // 6x6x6 color cube — map to nearest of 16 base colors by luminance/chroma.
+                    val idx = code - 16
+                    val r = (idx / 36) * 51
+                    val g = ((idx % 36) / 6) * 51
+                    val b = (idx % 6) * 51
+                    nearestBase(r, g, b)
+                }()
+                code < 256 -> {
+                    // Grayscale ramp — map by luminance.
+                    val v = 8 + (code - 232) * 10
+                    nearestBase(v, v, v)
+                }()
+                else -> DEFAULT
+            }
+        }
+
+        private fun nearestBase(r: Int, g: Int, b: Int): AnsiColor {
+            // Nearest among non-default entries by RGB distance.
+            var best: AnsiColor = WHITE
+            var bestDist = Long.MAX_VALUE
+            for (c in entries) {
+                if (c == DEFAULT) continue
+                val hex = c.hex
+                val cr = ((hex shr 16) and 0xFF).toInt()
+                val cg = ((hex shr 8) and 0xFF).toInt()
+                val cb = (hex and 0xFF).toInt()
+                val dr = (cr - r).toLong()
+                val dg = (cg - g).toLong()
+                val db = (cb - b).toLong()
+                val dist = dr * dr + dg * dg + db * db
+                if (dist < bestDist) {
+                    bestDist = dist
+                    best = c
                 }
             }
+            return best
         }
     }
 }

@@ -184,12 +184,22 @@ class ExecutionEngine @Inject constructor(
     }
 
     private suspend fun processQueue() {
-        val nextRequest = _executionQueue.poll() ?: return
-        executeImmediate(
-            interpreterId = nextRequest.interpreterId,
-            code = nextRequest.code,
-            timeout = nextRequest.timeout
-        )
+        // Iterative drain to avoid recursion / stack overflow on long queues.
+        // Note: called from within mutex.withLock; executeImmediate also locks,
+        // so we poll here and let the outer loop drive next executions elsewhere
+        // via stopAll/execute paths. Drain one level without re-entering lock.
+        _executionQueue.poll()?.let { nextRequest ->
+            // Launch next without holding the mutex across the call.
+            scope.launch {
+                executeImmediate(
+                    interpreterId = nextRequest.interpreterId,
+                    code = nextRequest.code,
+                    timeout = nextRequest.timeout
+                )
+                // Continue draining.
+                if (_executionQueue.isNotEmpty()) processQueue()
+            }
+        }
     }
 
     suspend fun executeBackground(
@@ -226,6 +236,13 @@ class ExecutionEngine @Inject constructor(
 
     fun cleanup() {
         monitoringJob?.cancel()
+        monitoringJob = null
+        stopAll()
+    }
+
+    fun destroy() {
+        monitoringJob?.cancel()
+        monitoringJob = null
         stopAll()
         scope.cancel()
     }

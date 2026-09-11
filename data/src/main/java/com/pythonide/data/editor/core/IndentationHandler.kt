@@ -7,12 +7,10 @@ class IndentationHandler {
     
     fun handleTab(state: EditorState): String {
         val position = state.cursorPosition
-        val line = state.lines.getOrNull(position.line) ?: return ""
-        
-        val indent = getIndentation(line)
-        val spaces = " ".repeat(state.tabSize - (indent.length % state.tabSize))
-        
-        return spaces
+        // Spaces to next tab stop based on cursor column, not line indent.
+        val spaces = state.tabSize - (position.column % state.tabSize)
+        if (spaces <= 0) return " ".repeat(state.tabSize)
+        return " ".repeat(spaces)
     }
 
     fun handleEnter(state: EditorState): String {

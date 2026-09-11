@@ -324,19 +324,32 @@ class IntelliSenseEngine {
     }
     
     private fun countCommasBefore(text: String, position: Int): Int {
+        // Count top-level commas inside the paren opened at `position`.
         var count = 0
         var depth = 0
-        var i = 0
-        
-        while (i < position && i < text.length) {
+        var i = (position + 1).coerceAtLeast(0)
+
+        while (i < text.length) {
             when (text[i]) {
                 '(' -> depth++
-                ')' -> depth--
+                ')' -> {
+                    if (depth == 0) break
+                    depth--
+                }
                 ',' -> if (depth == 0) count++
+                '"', '\'' -> {
+                    // Skip string literals to avoid counting commas inside them.
+                    val quote = text[i]
+                    i++
+                    while (i < text.length && text[i] != quote) {
+                        if (text[i] == '\\') i++
+                        i++
+                    }
+                }
             }
             i++
         }
-        
+
         return count
     }
     

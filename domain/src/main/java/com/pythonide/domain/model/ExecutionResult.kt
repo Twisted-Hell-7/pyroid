@@ -8,9 +8,10 @@ data class ExecutionResult(
     val returnValue: Any? = null,
     val exitCode: Int = 0,
     val executionTimeMs: Long = 0,
-    val exception: PythonException? = null,
-    val isSuccessful: Boolean = exitCode == 0 && exception == null
-)
+    val exception: PythonException? = null
+) {
+    val isSuccessful: Boolean get() = exitCode == 0 && exception == null
+}
 
 data class PythonException(
     val type: String,

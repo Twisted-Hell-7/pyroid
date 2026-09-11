@@ -61,7 +61,9 @@ class TabManager {
     }
     
     suspend fun setActiveTab(tabId: String) = mutex.withLock {
-        _state.update { it.copy(activeTabId = tabId) }
+        if (_state.value.tabs.any { it.id == tabId }) {
+            _state.update { it.copy(activeTabId = tabId) }
+        }
     }
     
     suspend fun updateTabContent(tabId: String, content: String) = mutex.withLock {

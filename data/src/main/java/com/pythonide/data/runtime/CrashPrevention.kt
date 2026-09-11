@@ -102,8 +102,12 @@ class CrashPrevention @Inject constructor() {
         isWatchdogActive.set(false)
         watchdogJob?.cancel()
         watchdogJob = null
-        scope.cancel()
         _watchdogState.value = WatchdogState.Inactive
+    }
+
+    fun destroy() {
+        stopWatchdog()
+        scope.cancel()
     }
 
     private fun checkResources() {

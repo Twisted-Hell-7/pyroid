@@ -5,7 +5,6 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-
 enum class WindowSize { COMPACT, MEDIUM, EXPANDED }
 
 @ReadOnlyComposable
@@ -38,17 +37,7 @@ fun isLandscape(): Boolean = LocalConfiguration.current.orientation == android.c
 @ReadOnlyComposable
 @Composable
 fun isTablet(): Boolean {
-    val config = LocalConfiguration.current
-    val diagonal = kotlin.math.sqrt(
-        (config.screenWidthDp.toDouble().pow(2) + config.screenHeightDp.toDouble().pow(2))
-    ).toFloat()
-    return diagonal >= 600f
-}
-
-private fun Double.pow(n: Int): Double {
-    var result = 1.0
-    repeat(n) { result *= this }
-    return result
+    return LocalConfiguration.current.screenWidthDp >= 600
 }
 
 @ReadOnlyComposable

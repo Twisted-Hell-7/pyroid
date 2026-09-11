@@ -86,12 +86,12 @@ class PermissionManager @Inject constructor(
         )
     )
 
-    fun checkPermission(permission: String): PermissionStatus {
+    fun checkPermission(permission: String, activity: android.app.Activity? = null): PermissionStatus {
         return when {
             ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED -> {
                 PermissionStatus.GRANTED
             }
-            shouldShowRationale(permission) -> {
+            shouldShowRationale(permission, activity) -> {
                 PermissionStatus.DENIED_SHOULD_SHOW_RATIONALE
             }
             else -> {
@@ -147,8 +147,13 @@ class PermissionManager @Inject constructor(
     }
 
     fun canAccessFiles(): Boolean {
-        return checkPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PermissionStatus.GRANTED &&
-                checkPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PermissionStatus.GRANTED
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // Scoped storage: legacy READ/WRITE_EXTERNAL_STORAGE are auto-denied.
+            // App-private files + SAF/MediaStore do not need them.
+            true
+        } else {
+            checkPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PermissionStatus.GRANTED
+        }
     }
 
     fun canAccessNetwork(): Boolean {
@@ -180,13 +185,16 @@ class PermissionManager @Inject constructor(
         }
     }
 
-    private fun shouldShowRationale(permission: String): Boolean {
+    private fun shouldShowRationale(permission: String, activity: android.app.Activity? = null): Boolean {
         return try {
-            val activity = (context as? android.app.Activity)
             activity?.shouldShowRequestPermissionRationale(permission) ?: false
         } catch (e: Exception) {
             false
         }
+    }
+
+    fun shouldShowRationaleForActivity(activity: android.app.Activity, permission: String): Boolean {
+        return shouldShowRationale(permission, activity)
     }
 
     enum class PermissionStatus {

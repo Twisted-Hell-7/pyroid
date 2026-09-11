@@ -374,7 +374,8 @@ class Linter : DiagnosticProvider {
         }
         
         defined.forEach { (varName, lineIndex) ->
-            val usageCount = content.split(varName).size - 1
+            val pattern = Regex("\\b${Regex.escape(varName)}\\b")
+            val usageCount = pattern.findAll(content).count()
             if (usageCount == 1) {
                 diagnostics.add(Diagnostic(
                     id = "unused_${varName}_${lineIndex}",
@@ -421,7 +422,8 @@ class Linter : DiagnosticProvider {
         }
         
         imports.forEach { (name, lineIndex) ->
-            val usageCount = content.split(name).size - 1
+            val pattern = Regex("\\b${Regex.escape(name)}\\b")
+            val usageCount = pattern.findAll(content).count()
             if (usageCount == 1) {
                 diagnostics.add(Diagnostic(
                     id = "unused_import_${name}_${lineIndex}",

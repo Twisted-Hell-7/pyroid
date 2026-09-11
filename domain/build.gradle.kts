@@ -1,8 +1,7 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.hilt)
-    alias(libs.plugins.ksp)
+    // Pure Kotlin/Android domain layer: no Hilt/KSP needed (no DI usage in domain).
 }
 
 android {
@@ -48,8 +47,6 @@ android {
 
 dependencies {
     implementation(libs.coroutines.core)
-    implementation(libs.hilt.android)
-    ksp(libs.hilt.compiler)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

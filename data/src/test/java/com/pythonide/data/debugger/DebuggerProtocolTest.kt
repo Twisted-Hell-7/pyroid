@@ -378,12 +378,12 @@ class DebuggerProtocolTest {
 
     @Test
     fun testDebugCommandWireValues() {
-        assertEquals("continue", com.pythonide.domain.model.debugger.DebugCommand.CONTINUE.wire)
-        assertEquals("step_into", com.pythonide.domain.model.debugger.DebugCommand.STEP_INTO.wire)
-        assertEquals("step_over", com.pythonide.domain.model.debugger.DebugCommand.STEP_OVER.wire)
-        assertEquals("step_out", com.pythonide.domain.model.debugger.DebugCommand.STEP_OUT.wire)
-        assertEquals("stop", com.pythonide.domain.model.debugger.DebugCommand.STOP.wire)
-        assertEquals("inspect", com.pythonide.domain.model.debugger.DebugCommand.INSPECT.wire)
+        assertEquals("continue", com.pythonide.domain.model.debugger.DebugCommand.Continue.wire)
+        assertEquals("step_into", com.pythonide.domain.model.debugger.DebugCommand.StepInto.wire)
+        assertEquals("step_over", com.pythonide.domain.model.debugger.DebugCommand.StepOver.wire)
+        assertEquals("step_out", com.pythonide.domain.model.debugger.DebugCommand.StepOut.wire)
+        assertEquals("stop", com.pythonide.domain.model.debugger.DebugCommand.Stop.wire)
+        assertEquals("inspect", com.pythonide.domain.model.debugger.DebugCommand.Inspect.wire)
     }
 
     @Test

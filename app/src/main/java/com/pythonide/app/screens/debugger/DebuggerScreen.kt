@@ -61,7 +61,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -219,16 +219,16 @@ fun DebugPanel(
     viewModel: DebuggerViewModel,
     modifier: Modifier = Modifier
 ) {
-    val debugState by viewModel.debugState.collectAsState()
-    val activePanel by viewModel.activePanel.collectAsState()
-    val isPanelVisible by viewModel.isPanelVisible.collectAsState()
-    val callStack by viewModel.callStack.collectAsState()
-    val variables by viewModel.variables.collectAsState()
-    val watchExpressions by viewModel.watchExpressions.collectAsState()
-    val logs by viewModel.logs.collectAsState()
-    val runtimeInfo by viewModel.runtimeInfo.collectAsState()
-    val errorMessages by viewModel.errorMessages.collectAsState()
-    val warningMessages by viewModel.warningMessages.collectAsState()
+    val debugState by viewModel.debugState.collectAsStateWithLifecycle()
+    val activePanel by viewModel.activePanel.collectAsStateWithLifecycle()
+    val isPanelVisible by viewModel.isPanelVisible.collectAsStateWithLifecycle()
+    val callStack by viewModel.callStack.collectAsStateWithLifecycle()
+    val variables by viewModel.variables.collectAsStateWithLifecycle()
+    val watchExpressions by viewModel.watchExpressions.collectAsStateWithLifecycle()
+    val logs by viewModel.logs.collectAsStateWithLifecycle()
+    val runtimeInfo by viewModel.runtimeInfo.collectAsStateWithLifecycle()
+    val errorMessages by viewModel.errorMessages.collectAsStateWithLifecycle()
+    val warningMessages by viewModel.warningMessages.collectAsStateWithLifecycle()
 
     AnimatedVisibility(
         visible = isPanelVisible,
@@ -257,7 +257,7 @@ fun DebugPanel(
             when (activePanel) {
                 DebugPanel.VARIABLES -> VariablesPanel(
                     variables = variables,
-                    expandedVariables = viewModel.expandedVariables.collectAsState().value,
+                    expandedVariables = viewModel.expandedVariables.collectAsStateWithLifecycle().value,
                     onToggleExpansion = { viewModel.toggleVariableExpansion(it) },
                     onInspect = { viewModel.inspectVariable(it) }
                 )
@@ -460,9 +460,8 @@ private fun VariableItem(
             )
         }
 
-        if (isExpanded && variable.children != null) {
-            val children = variable.children!!
-            children.forEach { child ->
+        if (isExpanded) {
+            variable.children.orEmpty().forEach { child ->
                 VariableItem(
                     variable = child,
                     isExpanded = false,
@@ -1008,6 +1007,48 @@ fun BreakpointGutter(
                     .size(8.dp)
                     .clip(CircleShape)
                     .background(Color(0xFFFFC107))
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DebuggerScreen(
+    filePath: String? = null,
+    onNavigateBack: () -> Unit = {},
+    viewModel: DebuggerViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+) {
+    val debugState by viewModel.debugState.collectAsStateWithLifecycle()
+
+    androidx.compose.material3.Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(filePath?.substringAfterLast("/") ?: "Debugger") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.filled.Close, contentDescription = "Back")
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding).padding(8.dp)) {
+            DebugToolbar(
+                debugState = debugState,
+                onStartDebugging = {
+                    if (filePath != null) viewModel.startDebugging(filePath, "")
+                },
+                onStopDebugging = { viewModel.stopDebugging() },
+                onContinue = { viewModel.continueExecution() },
+                onStepInto = { viewModel.stepInto() },
+                onStepOver = { viewModel.stepOver() },
+                onStepOut = { viewModel.stepOut() }
+            )
+            Spacer(Modifier.height(8.dp))
+            DebugPanel(
+                viewModel = viewModel,
+                modifier = Modifier.weight(1f)
             )
         }
     }

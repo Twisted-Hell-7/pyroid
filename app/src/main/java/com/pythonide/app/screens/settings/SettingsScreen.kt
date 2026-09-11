@@ -69,7 +69,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -93,56 +93,60 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+private val backupDateFormat = ThreadLocal.withInitial {
+    SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault())
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
-    val themeMode by viewModel.themeMode.collectAsState()
-    val useDynamicColors by viewModel.useDynamicColors.collectAsState()
-    val useAmoledBlack by viewModel.useAmoledBlack.collectAsState()
-    val editorTheme by viewModel.editorTheme.collectAsState()
-    val fontSize by viewModel.fontSize.collectAsState()
-    val fontFamily by viewModel.fontFamily.collectAsState()
-    val lineHeight by viewModel.lineHeight.collectAsState()
-    val executionTimeoutMs by viewModel.executionTimeoutMs.collectAsState()
-    val debugTimeoutMs by viewModel.debugTimeoutMs.collectAsState()
-    val autoSaveIntervalMs by viewModel.autoSaveIntervalMs.collectAsState()
-    val showLineNumbers by viewModel.showLineNumbers.collectAsState()
-    val wordWrap by viewModel.wordWrap.collectAsState()
-    val highlightCurrentLine by viewModel.highlightCurrentLine.collectAsState()
-    val autoIndent by viewModel.autoIndent.collectAsState()
-    val smartIndent by viewModel.smartIndent.collectAsState()
-    val autoBrackets by viewModel.autoBrackets.collectAsState()
-    val autoQuotes by viewModel.autoQuotes.collectAsState()
-    val tabSize by viewModel.tabSize.collectAsState()
-    val indentWithTabs by viewModel.indentWithTabs.collectAsState()
-    val showWhitespace by viewModel.showWhitespace.collectAsState()
-    val showEndOfFile by viewModel.showEndOfFile.collectAsState()
-    val bracketPairColorization by viewModel.bracketPairColorization.collectAsState()
-    val minimap by viewModel.minimap.collectAsState()
-    val stickyScroll by viewModel.stickyScroll.collectAsState()
-    val editorFontSize by viewModel.editorFontSize.collectAsState()
-    val consoleFontSize by viewModel.consoleFontSize.collectAsState()
-    val consoleFontFamily by viewModel.consoleFontFamily.collectAsState()
-    val showTimestamps by viewModel.showTimestamps.collectAsState()
-    val enableAnsiColors by viewModel.enableAnsiColors.collectAsState()
-    val maxConsoleLines by viewModel.maxConsoleLines.collectAsState()
-    val autoScroll by viewModel.autoScroll.collectAsState()
-    val consoleWordWrap by viewModel.consoleWordWrap.collectAsState()
-    val autoUpdatePackages by viewModel.autoUpdatePackages.collectAsState()
-    val showPrerelease by viewModel.showPrerelease.collectAsState()
-    val cacheTimeoutMinutes by viewModel.cacheTimeoutMinutes.collectAsState()
-    val maxConcurrentDownloads by viewModel.maxConcurrentDownloads.collectAsState()
-    val verifySignatures by viewModel.verifySignatures.collectAsState()
-    val autoBackupEnabled by viewModel.autoBackupEnabled.collectAsState()
-    val autoBackupIntervalMs by viewModel.autoBackupIntervalMs.collectAsState()
-    val maxBackups by viewModel.maxBackups.collectAsState()
-    val backupSettings by viewModel.backupSettings.collectAsState()
-    val backupProjects by viewModel.backupProjects.collectAsState()
-    val backupPackages by viewModel.backupPackages.collectAsState()
-    val lastBackupTimestamp by viewModel.lastBackupTimestamp.collectAsState()
+    val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+    val useDynamicColors by viewModel.useDynamicColors.collectAsStateWithLifecycle()
+    val useAmoledBlack by viewModel.useAmoledBlack.collectAsStateWithLifecycle()
+    val editorTheme by viewModel.editorTheme.collectAsStateWithLifecycle()
+    val fontSize by viewModel.fontSize.collectAsStateWithLifecycle()
+    val fontFamily by viewModel.fontFamily.collectAsStateWithLifecycle()
+    val lineHeight by viewModel.lineHeight.collectAsStateWithLifecycle()
+    val executionTimeoutMs by viewModel.executionTimeoutMs.collectAsStateWithLifecycle()
+    val debugTimeoutMs by viewModel.debugTimeoutMs.collectAsStateWithLifecycle()
+    val autoSaveIntervalMs by viewModel.autoSaveIntervalMs.collectAsStateWithLifecycle()
+    val showLineNumbers by viewModel.showLineNumbers.collectAsStateWithLifecycle()
+    val wordWrap by viewModel.wordWrap.collectAsStateWithLifecycle()
+    val highlightCurrentLine by viewModel.highlightCurrentLine.collectAsStateWithLifecycle()
+    val autoIndent by viewModel.autoIndent.collectAsStateWithLifecycle()
+    val smartIndent by viewModel.smartIndent.collectAsStateWithLifecycle()
+    val autoBrackets by viewModel.autoBrackets.collectAsStateWithLifecycle()
+    val autoQuotes by viewModel.autoQuotes.collectAsStateWithLifecycle()
+    val tabSize by viewModel.tabSize.collectAsStateWithLifecycle()
+    val indentWithTabs by viewModel.indentWithTabs.collectAsStateWithLifecycle()
+    val showWhitespace by viewModel.showWhitespace.collectAsStateWithLifecycle()
+    val showEndOfFile by viewModel.showEndOfFile.collectAsStateWithLifecycle()
+    val bracketPairColorization by viewModel.bracketPairColorization.collectAsStateWithLifecycle()
+    val minimap by viewModel.minimap.collectAsStateWithLifecycle()
+    val stickyScroll by viewModel.stickyScroll.collectAsStateWithLifecycle()
+    val editorFontSize by viewModel.editorFontSize.collectAsStateWithLifecycle()
+    val consoleFontSize by viewModel.consoleFontSize.collectAsStateWithLifecycle()
+    val consoleFontFamily by viewModel.consoleFontFamily.collectAsStateWithLifecycle()
+    val showTimestamps by viewModel.showTimestamps.collectAsStateWithLifecycle()
+    val enableAnsiColors by viewModel.enableAnsiColors.collectAsStateWithLifecycle()
+    val maxConsoleLines by viewModel.maxConsoleLines.collectAsStateWithLifecycle()
+    val autoScroll by viewModel.autoScroll.collectAsStateWithLifecycle()
+    val consoleWordWrap by viewModel.consoleWordWrap.collectAsStateWithLifecycle()
+    val autoUpdatePackages by viewModel.autoUpdatePackages.collectAsStateWithLifecycle()
+    val showPrerelease by viewModel.showPrerelease.collectAsStateWithLifecycle()
+    val cacheTimeoutMinutes by viewModel.cacheTimeoutMinutes.collectAsStateWithLifecycle()
+    val maxConcurrentDownloads by viewModel.maxConcurrentDownloads.collectAsStateWithLifecycle()
+    val verifySignatures by viewModel.verifySignatures.collectAsStateWithLifecycle()
+    val autoBackupEnabled by viewModel.autoBackupEnabled.collectAsStateWithLifecycle()
+    val autoBackupIntervalMs by viewModel.autoBackupIntervalMs.collectAsStateWithLifecycle()
+    val maxBackups by viewModel.maxBackups.collectAsStateWithLifecycle()
+    val backupSettings by viewModel.backupSettings.collectAsStateWithLifecycle()
+    val backupProjects by viewModel.backupProjects.collectAsStateWithLifecycle()
+    val backupPackages by viewModel.backupPackages.collectAsStateWithLifecycle()
+    val lastBackupTimestamp by viewModel.lastBackupTimestamp.collectAsStateWithLifecycle()
 
     var expandedSection by remember { mutableStateOf<String?>(null) }
     var showResetDialog by remember { mutableStateOf(false) }
@@ -477,8 +481,11 @@ fun SettingsScreen(
                         )
 
                         if (lastBackupTimestamp > 0) {
+                            val formattedBackupDate = remember(lastBackupTimestamp) {
+                                backupDateFormat.get()!!.format(Date(lastBackupTimestamp))
+                            }
                             Text(
-                                "Last backup: ${SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()).format(Date(lastBackupTimestamp))}",
+                                "Last backup: $formattedBackupDate",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                             )

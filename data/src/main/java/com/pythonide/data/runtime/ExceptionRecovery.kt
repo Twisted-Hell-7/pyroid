@@ -88,7 +88,7 @@ class ExceptionRecovery @Inject constructor() {
                 lastException = e
 
                 if (!isRetryableException(e, config)) {
-                    return@repeat
+                    throw e
                 }
 
                 _recoveryState.value = RecoveryState.Retrying(operation, attempt + 1, config.maxRetries)

@@ -73,7 +73,11 @@ object AnsiParser {
                             currentForeground = AnsiColor.from256(codes[i + 2])
                             i += 2
                         } else if (i + 1 < codes.size && codes[i + 1] == 2 && i + 4 < codes.size) {
-                            currentForeground = AnsiColor.DEFAULT
+                            // Truecolor 38;2;r;g;b — map to nearest base color.
+                            val r = codes[i + 2].coerceIn(0, 255)
+                            val g = codes[i + 3].coerceIn(0, 255)
+                            val b = codes[i + 4].coerceIn(0, 255)
+                            currentForeground = AnsiColor.from256(rgbTo256(r, g, b))
                             i += 4
                         }
                     }
@@ -84,7 +88,10 @@ object AnsiParser {
                             currentBackground = AnsiColor.from256(codes[i + 2])
                             i += 2
                         } else if (i + 1 < codes.size && codes[i + 1] == 2 && i + 4 < codes.size) {
-                            currentBackground = AnsiColor.DEFAULT
+                            val r = codes[i + 2].coerceIn(0, 255)
+                            val g = codes[i + 3].coerceIn(0, 255)
+                            val b = codes[i + 4].coerceIn(0, 255)
+                            currentBackground = AnsiColor.from256(rgbTo256(r, g, b))
                             i += 4
                         }
                     }
@@ -124,7 +131,20 @@ object AnsiParser {
     }
 
     fun stripAnsi(text: String): String {
-        return ANSI_PATTERN.replace(text, "")
+        // SGR + CSI (cursor, erase, scroll) + OSC hyperlinks.
+        return text
+            .replace(Regex("\u001B\\[[0-9;?]*[a-zA-Z]"), "")
+            .replace(Regex("\u001B\\].*?(\u0007|\u001B\\\\)"), "")
+            .replace(Regex("\u001B[()][0-9A-B]"), "")
+    }
+
+    private fun rgbTo256(r: Int, g: Int, b: Int): Int {
+        if (r == g && g == b) {
+            if (r < 8) return 16
+            if (r > 248) return 231
+            return ((r - 8) / 10 + 232).coerceIn(232, 255)
+        }
+        return 16 + (r / 51) * 36 + (g / 51) * 6 + (b / 51)
     }
 
     fun hasAnsi(text: String): Boolean {

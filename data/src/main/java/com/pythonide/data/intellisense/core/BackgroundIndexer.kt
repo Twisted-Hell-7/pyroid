@@ -28,14 +28,20 @@ class BackgroundIndexer {
     private val _stats = MutableStateFlow(IndexStats(0, 0, 0, 0))
     val stats: StateFlow<IndexStats> = _stats.asStateFlow()
     
-    private val index = mutableMapOf<String, IndexEntry>()
+    private val index = mutableMapOf<String, MutableList<IndexEntry>>()
     private val fileIndex = mutableMapOf<String, List<IndexEntry>>()
     
     suspend fun indexFile(filePath: String, content: String) = mutex.withLock {
         val entries = extractEntries(filePath, content)
+        val old = fileIndex[filePath] ?: emptyList()
+        // Remove old entries for this file only
+        old.forEach { e ->
+            index[e.name]?.removeAll { it.filePath == filePath }
+            if (index[e.name]?.isEmpty() == true) index.remove(e.name)
+        }
         fileIndex[filePath] = entries
         entries.forEach { entry ->
-            index[entry.name] = entry
+            index.getOrPut(entry.name) { mutableListOf() }.add(entry)
         }
         
         updateStats()
@@ -53,7 +59,7 @@ class BackgroundIndexer {
                 val entries = extractEntries(filePath, content)
                 fileIndex[filePath] = entries
                 entries.forEach { entry ->
-                    index[entry.name] = entry
+                    index.getOrPut(entry.name) { mutableListOf() }.add(entry)
                 }
             }
             
@@ -72,17 +78,22 @@ class BackgroundIndexer {
     suspend fun removeFile(filePath: String) = mutex.withLock {
         val entries = fileIndex.remove(filePath) ?: return@withLock
         entries.forEach { entry ->
-            index.remove(entry.name)
+            index[entry.name]?.removeAll { it.filePath == filePath }
+            if (index[entry.name]?.isEmpty() == true) index.remove(entry.name)
         }
         updateStats()
     }
     
     suspend fun getEntry(name: String): IndexEntry? {
-        return index[name]
+        return index[name]?.firstOrNull()
+    }
+
+    suspend fun getEntries(name: String): List<IndexEntry> {
+        return index[name]?.toList() ?: emptyList()
     }
     
     suspend fun searchEntries(query: String): List<IndexEntry> {
-        return index.values.filter { entry ->
+        return index.values.flatten().filter { entry ->
             entry.name.contains(query, ignoreCase = true)
         }
     }
@@ -92,7 +103,7 @@ class BackgroundIndexer {
     }
     
     suspend fun getAllEntries(): List<IndexEntry> {
-        return index.values.toList()
+        return index.values.flatten().toList()
     }
     
     suspend fun clearIndex() = mutex.withLock {
@@ -284,7 +295,7 @@ class BackgroundIndexer {
     }
     
     fun convertToCompletionItems(): List<CompletionItem> {
-        return index.values.map { entry ->
+        return index.values.flatten().map { entry ->
             CompletionItem(
                 id = "index_${entry.name}",
                 label = entry.name,

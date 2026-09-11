@@ -9,8 +9,8 @@ class CompatibilityMatrixTest {
 
     @Test
     fun testPythonVersionCompatibility() {
-        // Chaquopy bundles CPython 3.11
-        val pythonVersion = "3.11"
+        // Chaquopy bundles CPython 3.14
+        val pythonVersion = "3.14"
         assertNotNull(pythonVersion)
         assertTrue(pythonVersion.startsWith("3."))
     }
@@ -54,8 +54,8 @@ class CompatibilityMatrixTest {
     @Test
     fun testNativeWheelCompatibility() {
         // Native wheels need to match ABI
-        val wheelAbi = "cp311"
-        val runtimeAbi = "cp311"
+        val wheelAbi = "cp314"
+        val runtimeAbi = "cp314"
         assertEquals(wheelAbi, runtimeAbi)
     }
 

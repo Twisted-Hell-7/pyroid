@@ -124,7 +124,7 @@ class PackageManagerRepositoryImpl @Inject constructor(
 
                 val response = executeHttpRequest(request)
                 if (response.isSuccessful) {
-                    val htmlBody = response.body?.string() ?: ""
+                    val htmlBody = response.body
                     val results = parseSearchResults(htmlBody, query)
                     _searchResults.value = results
                     if (results.isNotEmpty()) {
@@ -162,7 +162,7 @@ class PackageManagerRepositoryImpl @Inject constructor(
 
                 val response = executeHttpRequest(request)
                 if (response.isSuccessful) {
-                    val jsonBody = response.body?.string() ?: "{}"
+                    val jsonBody = response.body.ifEmpty { "{}" }
                     val packageInfo = parsePackageInfo(jsonBody, packageName)
                     packageCache[packageName] = packageInfo
                     lastCacheRefresh = System.currentTimeMillis()
@@ -191,7 +191,7 @@ class PackageManagerRepositoryImpl @Inject constructor(
 
                 val response = executeHttpRequest(request)
                 if (response.isSuccessful) {
-                    val jsonBody = response.body?.string() ?: "{}"
+                    val jsonBody = response.body.ifEmpty { "{}" }
                     val versions = parsePackageVersions(jsonBody)
                     Result.success(versions)
                 } else {
@@ -212,9 +212,7 @@ class PackageManagerRepositoryImpl @Inject constructor(
         return Result.success(NativeBinaryInfo(packageName = packageName, requiredAbi = "", availableAbi = null))
     }
 
-    override suspend fun getInstalledPackages(): Flow<List<InstalledPackage>> = flow {
-        emit(_installedPackages.value)
-    }
+    override suspend fun getInstalledPackages(): Flow<List<InstalledPackage>> = _installedPackages
 
     override suspend fun getInstalledPackage(packageName: String): Result<InstalledPackage> {
         val pkg = _installedPackages.value.find { it.name.equals(packageName, ignoreCase = true) }
@@ -751,6 +749,7 @@ class PackageManagerRepositoryImpl @Inject constructor(
     }
 
     override suspend fun restoreBackup(backupId: String): Flow<InstallProgress> = flow {
+        emit(InstallProgress(backupId, "restore", InstallTaskStatus.FAILED, 0f, message = "Restore not implemented"))
     }
 
     override suspend fun deleteBackup(backupId: String): Result<Boolean> {
@@ -799,8 +798,9 @@ class PackageManagerRepositoryImpl @Inject constructor(
 
     override suspend fun installFromRequirements(requirementsContent: String): Result<Unit> {
         return withContext(Dispatchers.IO) {
+            var tempFile: File? = null
             try {
-                val tempFile = File(context.cacheDir, "requirements.txt")
+                tempFile = File.createTempFile("req_", ".txt", context.cacheDir)
                 tempFile.writeText(requirementsContent)
 
                 _currentProgress.value = ProgressState.Installing("requirements.txt", 0f)
@@ -813,7 +813,7 @@ class PackageManagerRepositoryImpl @Inject constructor(
                 }
 
                 val result = executePipCommandWithProgress(pipArgs)
-                tempFile.delete()
+                try { tempFile.delete() } catch (_: Exception) {}
 
                 if (result.isSuccess) {
                     _currentProgress.value = ProgressState.Idle
@@ -826,6 +826,7 @@ class PackageManagerRepositoryImpl @Inject constructor(
                     Result.failure(Exception(error))
                 }
             } catch (e: Exception) {
+                try { tempFile?.delete() } catch (_: Exception) {}
                 _currentProgress.value = ProgressState.Error(e.message ?: "Unknown error")
                 addErrorMessage("Error installing requirements: ${e.message}")
                 Result.failure(e)
@@ -883,23 +884,25 @@ class PackageManagerRepositoryImpl @Inject constructor(
 
     private fun processInstallQueue() {
         scope.launch {
+            if (_isProcessingQueue.value) return@launch
             _isProcessingQueue.value = true
 
-            while (true) {
-                val task = synchronized(installTaskQueue) {
-                    installTaskQueue.poll()
-                }
+            try {
+                while (true) {
+                    val task = synchronized(installTaskQueue) {
+                        installTaskQueue.poll()
+                    } ?: break
 
-                if (task == null) {
-                    break
+                    val job = launch {
+                        executeInstallTask(task)
+                    }
+                    currentInstallJob = job
+                    job.join()
                 }
-
-                currentInstallJob = launch {
-                    executeInstallTask(task)
-                }
+            } finally {
+                currentInstallJob = null
+                _isProcessingQueue.value = false
             }
-
-            _isProcessingQueue.value = false
         }
     }
 
@@ -1022,9 +1025,17 @@ class PackageManagerRepositoryImpl @Inject constructor(
         return null
     }
 
-    private suspend fun executeHttpRequest(request: Request): Response {
+    private data class HttpResult(val code: Int, val body: String, val isSuccessful: Boolean)
+
+    private suspend fun executeHttpRequest(request: Request): HttpResult {
         return withContext(Dispatchers.IO) {
-            httpClient.newCall(request).execute()
+            httpClient.newCall(request).execute().use { response ->
+                HttpResult(
+                    code = response.code,
+                    body = response.body?.string() ?: "",
+                    isSuccessful = response.isSuccessful
+                )
+            }
         }
     }
 

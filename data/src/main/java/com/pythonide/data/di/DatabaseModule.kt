@@ -41,6 +41,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "python_ide_database"
         )
+            .fallbackToDestructiveMigration()
             .build()
     }
 

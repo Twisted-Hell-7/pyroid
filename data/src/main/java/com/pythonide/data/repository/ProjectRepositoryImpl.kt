@@ -18,6 +18,7 @@ import com.pythonide.domain.model.project.Project
 import com.pythonide.domain.model.project.ProjectBackup
 import com.pythonide.domain.model.project.ProjectMetadata
 import com.pythonide.domain.model.project.ProjectSession
+import com.pythonide.domain.model.project.ProjectStats
 import com.pythonide.domain.model.project.ProjectTemplate
 import com.pythonide.domain.model.project.SaveResult
 import com.pythonide.domain.model.project.ScrollPosition
@@ -27,7 +28,6 @@ import com.pythonide.domain.model.project.TemplateCategory
 import com.pythonide.domain.model.project.TemplateFile
 import com.pythonide.domain.model.project.TemplateIcon
 import com.pythonide.domain.repository.ProjectRepository
-import com.pythonide.domain.repository.ProjectStats
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -380,7 +380,10 @@ class ProjectRepositoryImpl @Inject constructor(
             }
 
             if (oldDir.exists()) {
-                oldDir.renameTo(newDir)
+                val renamed = oldDir.renameTo(newDir)
+                if (!renamed) {
+                    return@withContext Result.failure(Exception("Failed to rename project directory"))
+                }
             }
 
             val updatedProject = project.copy(
@@ -1007,10 +1010,15 @@ class ProjectRepositoryImpl @Inject constructor(
     }
 
     private fun extractZipArchive(zipFile: File, destDir: File) {
+        val destCanonical = destDir.canonicalPath + File.separator
         ZipInputStream(FileInputStream(zipFile)).use { zipIn ->
             var entry = zipIn.nextEntry
             while (entry != null) {
                 val filePath = File(destDir, entry.name)
+                // Zip-Slip protection
+                if (!filePath.canonicalPath.startsWith(destCanonical)) {
+                    throw SecurityException("Zip entry outside target dir: ${entry.name}")
+                }
                 if (entry.isDirectory) {
                     filePath.mkdirs()
                 } else {

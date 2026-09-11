@@ -13,7 +13,7 @@ import com.pythonide.domain.model.filemanager.FileOperationStatus
 import com.pythonide.domain.model.filemanager.FileOperationType
 import com.pythonide.domain.model.filemanager.FileType
 import com.pythonide.domain.model.filemanager.FileManagerState
-import com.pythonide.domain.model.filemanager.Project
+import com.pythonide.domain.model.project.Project
 import com.pythonide.domain.model.filemanager.RecentFile
 import com.pythonide.domain.model.filemanager.SortBy
 import com.pythonide.domain.model.filemanager.SortOrder

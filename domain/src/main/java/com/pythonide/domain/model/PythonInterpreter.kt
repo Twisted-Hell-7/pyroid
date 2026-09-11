@@ -6,7 +6,7 @@ data class PythonInterpreter(
     val id: String = UUID.randomUUID().toString(),
     val name: String = "Python",
     val state: InterpreterState = InterpreterState.IDLE,
-    val pythonVersion: String = "3.11",
+    val pythonVersion: String = "3.14",
     val createdAt: Long = System.currentTimeMillis(),
     val lastActiveAt: Long = System.currentTimeMillis()
 )

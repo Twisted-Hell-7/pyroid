@@ -3,6 +3,7 @@ package com.pythonide.domain.repository
 import com.pythonide.domain.model.ExecutionResult
 import com.pythonide.domain.model.InterpreterConfig
 import com.pythonide.domain.model.PythonInterpreter
+import com.pythonide.domain.model.REPLHistoryEntry
 import kotlinx.coroutines.flow.Flow
 
 interface PythonRuntimeRepository {
@@ -15,8 +16,8 @@ interface PythonRuntimeRepository {
     suspend fun stopExecution(interpreterId: String)
     suspend fun restartInterpreter(interpreterId: String)
     suspend fun clearHistory(interpreterId: String)
-    suspend fun getHistory(interpreterId: String): List<com.pythonide.domain.model.REPLHistoryEntry>
+    suspend fun getHistory(interpreterId: String): List<REPLHistoryEntry>
     suspend fun isAvailable(): Boolean
-    suspend fun installPackages(packages: List<String>): Boolean
-    suspend fun getInstalledPackages(): List<String>
+    suspend fun installPackages(packages: List<String>): Result<Boolean>
+    suspend fun getInstalledPackages(): Result<List<String>>
 }

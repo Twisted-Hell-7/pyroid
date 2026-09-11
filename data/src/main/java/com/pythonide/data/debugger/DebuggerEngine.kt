@@ -31,6 +31,8 @@ import java.io.File
 import java.io.InputStreamReader
 import java.io.OutputStream
 import java.util.UUID
+import java.util.concurrent.ConcurrentLinkedQueue
+import android.util.Base64
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -73,6 +75,7 @@ class DebuggerEngine @Inject constructor(
 
     private var currentFilePath: String = ""
     private var currentCode: String = ""
+    private val commandResponses = ConcurrentLinkedQueue<String>()
 
     suspend fun startDebugging(
         filePath: String,
@@ -95,6 +98,12 @@ class DebuggerEngine @Inject constructor(
             scriptFile.deleteOnExit()
 
             val pythonPath = findPythonPath()
+            if (pythonPath == null) {
+                // No system python on Android — caller should route via Chaquopy/PythonNativeBridge.
+                _debugState.value = DebugState.ERROR
+                addLog(LogLevel.ERROR, "No Python executable found; debugging requires Chaquopy runtime on Android")
+                return@withContext Result.failure(IllegalStateException("No Python executable available on this device"))
+            }
             val processBuilder = ProcessBuilder(
                 pythonPath, "-u", scriptFile.absolutePath
             )
@@ -273,23 +282,29 @@ class DebuggerEngine @Inject constructor(
     }
 
     private suspend fun sendCommandAndGetResponse(command: String): String {
-        val responseBuffer = StringBuilder()
-        
+        commandResponses.clear()
         sendCommand(command)
-        
-        // Wait for response with timeout
+
+        // Collect lines fed by readStdout via commandResponses, with timeout.
         val startTime = System.currentTimeMillis()
         val timeoutMs = 5000L
-        
+        val collected = StringBuilder()
+
         while (System.currentTimeMillis() - startTime < timeoutMs) {
-            kotlinx.coroutines.delay(50)
-            // Check if we have a pending response in the event queue
-            if (responseBuffer.isNotEmpty()) {
-                break
+            val line = commandResponses.poll()
+            if (line != null) {
+                // (Pdb) prompt marks end of response.
+                if (line.startsWith("(Pdb)") || line == "Pdb>") break
+                if (collected.isNotEmpty()) collected.append('\n')
+                collected.append(line)
+                // Heuristic: single-expression responses are one line; keep draining briefly.
+                if (collected.length > 4000) break
+            } else {
+                kotlinx.coroutines.delay(50)
             }
         }
 
-        return responseBuffer.toString().trim()
+        return collected.toString().trim()
     }
 
     private suspend fun readStdout(reader: BufferedReader) {
@@ -324,12 +339,16 @@ class DebuggerEngine @Inject constructor(
         when {
             line.startsWith("__DEBUG_EVENT__:") -> parseDebugEvent(line.removePrefix("__DEBUG_EVENT__:"))
             line.startsWith("(Pdb) ") || line == "Pdb>" -> {
+                commandResponses.offer(line)
                 if (_debugState.value == DebugState.STEPPING) {
                     _debugState.value = DebugState.PAUSED
                 }
             }
             line.startsWith("> ") -> parseSourceLocation(line)
-            else -> addLog(LogLevel.DEBUG, line)
+            else -> {
+                commandResponses.offer(line)
+                addLog(LogLevel.DEBUG, line)
+            }
         }
     }
 
@@ -580,6 +599,8 @@ class DebuggerEngine @Inject constructor(
     ): String {
         val breakpointLines = breakpoints.filter { it.enabled }.map { it.lineNumber }
         val breakpointSet = breakpointLines.joinToString(",") { it.toString() }
+        val safeFilePath = filePath.replace("\\", "\\\\").replace("\"", "\\\"")
+        val codeBase64 = Base64.encodeToString(code.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
 
         return """
 import sys
@@ -636,7 +657,7 @@ class JsonDebugger(bdb.Bdb):
             "filename": frame.f_code.co_filename,
             "function": frame.f_code.co_name,
             "lineno": frame.f_lineno,
-            "col_offset": frame.f_col_offset,
+            "col_offset": getattr(frame, "f_col_offset", 0),
             "source_line": source_line
         }
 
@@ -742,20 +763,24 @@ import linecache
 import json
 import bdb
 import sys
-import resource
+import base64
+try:
+    import resource
+except ImportError:
+    resource = None
 import threading
 
-code = '''${code.replace("'", "\\'").replace("\n", "\\n")}'''
+code = base64.b64decode("$codeBase64").decode("utf-8")
 
 debugger = JsonDebugger()
 for line_num in {$breakpointSet}:
-    debugger.set_break("${filePath}", line_num)
+    debugger.set_break("$safeFilePath", line_num)
 
 print("__DEBUG_EVENT__:__STARTED__", flush=True)
 
 try:
-    compiled = compile(code, "${filePath}", "exec")
-    debugger.run(compiled, {'__name__': '__main__', '__file__': '${filePath}'})
+    compiled = compile(code, "$safeFilePath", "exec")
+    debugger.run(compiled, {'__name__': '__main__', '__file__': "$safeFilePath"})
 except SystemExit:
     pass
 except Exception as e:
@@ -771,14 +796,14 @@ finally:
 """.trimIndent()
     }
 
-    private fun findPythonPath(): String {
+    private fun findPythonPath(): String? {
         val paths = listOf(
             "${context.filesDir}/python/python3",
             "${context.filesDir}/python/bin/python3",
             "/system/bin/python3",
             "/usr/bin/python3"
         )
-        return paths.firstOrNull { File(it).exists() } ?: "python3"
+        return paths.firstOrNull { File(it).exists() && File(it).canExecute() }
     }
 
     private fun addLog(level: LogLevel, message: String) {

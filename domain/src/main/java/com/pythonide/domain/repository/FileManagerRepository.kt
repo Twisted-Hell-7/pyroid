@@ -3,7 +3,7 @@ package com.pythonide.domain.repository
 import com.pythonide.domain.model.filemanager.FileManagerItem
 import com.pythonide.domain.model.filemanager.FileOperation
 import com.pythonide.domain.model.filemanager.FileOperationStatus
-import com.pythonide.domain.model.filemanager.Project
+import com.pythonide.domain.model.project.Project
 import com.pythonide.domain.model.filemanager.RecentFile
 import com.pythonide.domain.model.filemanager.StorageSource
 import kotlinx.coroutines.flow.Flow

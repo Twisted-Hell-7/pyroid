@@ -102,26 +102,43 @@ class SandboxExecutor @Inject constructor() {
                 monitorProcess(sandboxProcess)
             }
 
+            val outputBuffer = StringBuilder()
+            val errorBuffer = StringBuilder()
+            val collectingOutput: (String) -> Unit = { line ->
+                synchronized(outputBuffer) { outputBuffer.appendLine(line) }
+                onOutput(line)
+            }
+            val collectingError: (String) -> Unit = { line ->
+                synchronized(errorBuffer) { errorBuffer.appendLine(line) }
+                onError(line)
+            }
+
             val outputJob = launch {
-                readProcessOutput(process, sandboxProcess, onOutput, onError)
+                readProcessOutput(process, sandboxProcess, collectingOutput, collectingError)
             }
 
             val exitCode = withTimeoutOrNull(limits.maxWallTimeMs) {
                 process.waitFor()
             }
 
+            try {
+                withTimeoutOrNull(2000) { outputJob.join() }
+            } catch (e: Exception) {
+                // best effort
+            }
             monitorJob.cancel()
-            outputJob.cancel()
+            if (outputJob.isActive) outputJob.cancel()
 
             if (exitCode == null) {
                 terminateProcess(sandboxProcess, TerminationReason.TIMEOUT)
                 SandboxResult.Timeout(processId, limits.maxWallTimeMs)
             } else {
-                val output = readRemainingOutput(process)
+                val output = synchronized(outputBuffer) { outputBuffer.toString().trim() } +
+                    readRemainingOutput(process).let { if (it.isNotBlank()) "\n$it" else "" }
                 SandboxResult.Completed(
                     processId = processId,
                     exitCode = exitCode,
-                    output = output,
+                    output = output.trim(),
                     resourceUsage = getCurrentUsage(sandboxProcess)
                 )
             }
@@ -140,6 +157,15 @@ class SandboxExecutor @Inject constructor() {
     private fun validateCommand(command: List<String>, limits: ResourceLimits) {
         if (command.isEmpty()) {
             throw SecurityException("Empty command")
+        }
+
+        if (isEnforcing.get()) {
+            val fullCommand = command.joinToString(" ")
+            for (blocked in limits.blockedModules) {
+                if (fullCommand.contains(blocked)) {
+                    throw SecurityException("Blocked module pattern: $blocked")
+                }
+            }
         }
 
         val blockedCommands = listOf("rm -rf", "mkfs", "dd if=", "> /dev/")
@@ -177,7 +203,7 @@ class SandboxExecutor @Inject constructor() {
         )
 
         for (sensitive in sensitivePaths) {
-            if (canonicalPath.startsWith(sensitive)) {
+            if (canonicalPath == sensitive || canonicalPath.startsWith(sensitive + File.separator)) {
                 throw SecurityException("Access to sensitive directory blocked: $sensitive")
             }
         }

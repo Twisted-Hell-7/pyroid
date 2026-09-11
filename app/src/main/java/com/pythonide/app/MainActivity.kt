@@ -7,11 +7,11 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.pythonide.app.navigation.PythonIDENavHost
@@ -26,9 +26,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             val viewModel: MainViewModel = hiltViewModel()
-            val themeMode by viewModel.themeMode.collectAsState()
-            val useDynamicColors by viewModel.useDynamicColors.collectAsState()
-            val useAmoledBlack by viewModel.useAmoledBlack.collectAsState()
+            val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+            val useDynamicColors by viewModel.useDynamicColors.collectAsStateWithLifecycle()
+            val useAmoledBlack by viewModel.useAmoledBlack.collectAsStateWithLifecycle()
 
             PythonIDETheme(
                 themeMode = themeMode,

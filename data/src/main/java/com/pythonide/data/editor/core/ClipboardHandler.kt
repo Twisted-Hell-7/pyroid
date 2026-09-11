@@ -6,10 +6,17 @@ import android.content.Context
 import com.pythonide.domain.model.editor.CursorPosition
 import com.pythonide.domain.model.editor.EditorState
 import com.pythonide.domain.model.editor.Selection
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class ClipboardHandler(private val context: Context) {
-    
-    private val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+@Singleton
+class ClipboardHandler @Inject constructor(
+    @ApplicationContext context: Context
+) {
+
+    private val appContext = context.applicationContext
+    private val clipboardManager = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
     
     fun copy(state: EditorState): Boolean {
         val cm = clipboardManager ?: return false
@@ -28,6 +35,7 @@ class ClipboardHandler(private val context: Context) {
     }
     
     fun cut(state: EditorState): Pair<EditorState, Boolean> {
+        if (state.isReadOnly) return Pair(state, false)
         val selection = state.selection ?: return Pair(state, false)
         
         if (copy(state)) {
@@ -53,6 +61,7 @@ class ClipboardHandler(private val context: Context) {
     }
     
     fun paste(state: EditorState): EditorState {
+        if (state.isReadOnly) return state
         val cm = clipboardManager ?: return state
         val clip = cm.primaryClip ?: return state
         if (clip.itemCount == 0) return state

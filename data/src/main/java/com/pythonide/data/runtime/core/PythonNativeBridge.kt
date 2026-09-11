@@ -51,19 +51,16 @@ class PythonNativeBridge @Inject constructor(
             val py = Python.getInstance()
             val builtins = py.getBuiltins()
 
-            val stdoutCapture = StringBuilder()
-            val stderrCapture = StringBuilder()
-
-            val wrappedCode = wrapCodeForExecution(code, stdoutCapture, stderrCapture)
+            val wrappedCode = wrapCodeForExecution(code)
 
             val codeObj = builtins.callAttr("compile", wrappedCode, "<string>", "exec")
 
-            val globals = py.getBuiltins().callAttr("dict")
-            globals["__builtins__"] = py.getBuiltins()
-            globals.callAttr("exec", codeObj, globals)
+            val globals = builtins.callAttr("dict")
+            globals.callAttr("__setitem__", "__builtins__", py.getBuiltins())
+            builtins.callAttr("exec", codeObj, globals)
 
-            val stdout = stdoutCapture.toString().trim()
-            val stderr = stderrCapture.toString().trim()
+            val stdout = globals.callAttr("get", "_stdout_val")?.toString().orEmpty().trim()
+            val stderr = globals.callAttr("get", "_stderr_val")?.toString().orEmpty().trim()
 
             val exception = if (stderr.isNotEmpty()) {
                 parsePythonException(stderr)
@@ -98,7 +95,7 @@ class PythonNativeBridge @Inject constructor(
         }
     }
 
-    private fun wrapCodeForExecution(code: String, stdout: StringBuilder, stderr: StringBuilder): String {
+    private fun wrapCodeForExecution(code: String): String {
         val escapedCode = code
             .replace("\\", "\\\\")
             .replace("\"", "\\\"")
@@ -196,19 +193,17 @@ finally:
         try {
             val py = Python.getInstance()
             val builtins = py.getBuiltins()
-            val stdoutCapture = StringBuilder()
-            val stderrCapture = StringBuilder()
 
-            val wrappedCode = wrapCodeForExecution(command, stdoutCapture, stderrCapture)
+            val wrappedCode = wrapCodeForExecution(command)
             val codeObj = builtins.callAttr("compile", wrappedCode, "<string>", "exec")
-            val globals = py.getBuiltins().callAttr("dict")
-            globals["__builtins__"] = py.getBuiltins()
-            globals.callAttr("exec", codeObj, globals)
+            val globals = builtins.callAttr("dict")
+            globals.callAttr("__setitem__", "__builtins__", py.getBuiltins())
+            builtins.callAttr("exec", codeObj, globals)
 
             CommandResult(
                 exitCode = 0,
-                output = stdoutCapture.toString().trim(),
-                error = stderrCapture.toString().trim()
+                output = globals.callAttr("get", "_stdout_val")?.toString().orEmpty().trim(),
+                error = globals.callAttr("get", "_stderr_val")?.toString().orEmpty().trim()
             )
         } catch (e: Exception) {
             CommandResult(
@@ -231,14 +226,18 @@ finally:
             val py = Python.getInstance()
             val builtins = py.getBuiltins()
 
-            val wrappedCode = wrapCodeForExecution(command, StringBuilder(), StringBuilder())
+            val wrappedCode = wrapCodeForExecution(command)
             val codeObj = builtins.callAttr("compile", wrappedCode, "<string>", "exec")
-            val globals = py.getBuiltins().callAttr("dict")
-            globals["__builtins__"] = py.getBuiltins()
-            globals.callAttr("exec", codeObj, globals)
+            val globals = builtins.callAttr("dict")
+            globals.callAttr("__setitem__", "__builtins__", py.getBuiltins())
+            builtins.callAttr("exec", codeObj, globals)
 
-            onLine(command)
-            CommandResult(exitCode = 0, output = "", error = "")
+            val output = globals.callAttr("get", "_stdout_val")?.toString().orEmpty().trim()
+            val error = globals.callAttr("get", "_stderr_val")?.toString().orEmpty().trim()
+            if (output.isNotEmpty()) {
+                output.lines().forEach { onLine(it) }
+            }
+            CommandResult(exitCode = 0, output = output, error = error)
         } catch (e: Exception) {
             onLine(e.message ?: "Unknown error")
             CommandResult(exitCode = 1, output = "", error = e.message ?: "Unknown error")
@@ -249,7 +248,7 @@ finally:
         return try {
             val py = Python.getInstance()
             val sys = py.getModule("sys")
-            sys["version"].toString()
+            sys.get("version")?.toString()
         } catch (e: Exception) {
             null
         }

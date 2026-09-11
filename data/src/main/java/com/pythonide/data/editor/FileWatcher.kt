@@ -68,6 +68,10 @@ class FileWatcher(
                         
                         synchronized(changes) {
                             changes.add(FileChange(fullPath, changeType))
+                            // Cap to avoid unbounded memory growth.
+                            while (changes.size > 500) {
+                                changes.removeAt(0)
+                            }
                             fileChanges.value = changes.toList()
                         }
                     }
@@ -96,11 +100,16 @@ class FileWatcher(
     
     fun stopWatching() {
         watchJob?.cancel()
+        watchJob = null
         watchedPaths.keys.forEach { path ->
             watchedPaths[path]?.cancel()
         }
         watchedPaths.clear()
-        watchService?.close()
+        try { watchService?.close() } catch (_: Exception) {}
+    }
+
+    fun destroy() {
+        stopWatching()
         scope.cancel()
     }
     
@@ -145,16 +154,30 @@ class LazyFileLoader(
         _loadingState.value = LoadingState.Loading(key, 0f)
         
         try {
-            val lines = file.readLines()
-            totalLines[key] = lines.size
+            // Stream line-by-line to avoid holding two copies; report progress.
+            val all = mutableListOf<String>()
+            file.bufferedReader().use { reader ->
+                var count = 0
+                while (true) {
+                    val line = reader.readLine() ?: break
+                    all.add(line)
+                    count++
+                    if (count % 1000 == 0) {
+                        _loadingState.value = LoadingState.Loading(key, -1f)
+                    }
+                }
+            }
+            totalLines[key] = all.size
             
-            val chunks = lines.chunked(chunkSize)
-            fileChunks[key] = lines
+            val chunks = all.chunked(chunkSize)
+            // Store a single flattened copy + chunk index set for true paging.
+            fileChunks[key] = all
             loadedChunks[key] = (0 until chunks.size).toMutableSet()
             
             _loadingState.value = LoadingState.Loaded(key, chunks.size)
             
-            lines
+            // Return only first chunk to avoid OOM on huge files; callers page via loadChunk.
+            if (all.size > chunkSize * 4) all.subList(0, chunkSize * 4).toList() else all
         } catch (e: Exception) {
             _loadingState.value = LoadingState.Error(e.message ?: "Failed to load file")
             emptyList()

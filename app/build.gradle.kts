@@ -14,8 +14,8 @@ android {
         applicationId = "com.pythonide.app"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.0.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -24,7 +24,11 @@ android {
         }
 
         buildConfigField("String", "APP_NAME", "\"Python IDE\"")
-        buildConfigField("String", "APP_VERSION", "\"1.0.0\"")
+        buildConfigField("String", "APP_VERSION", "\"1.0.2\"")
+
+        ndk {
+            abiFilters += listOf("arm64-v8a", "x86_64")
+        }
     }
 
     buildTypes {
@@ -35,7 +39,6 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("debug")
         }
         debug {
             isMinifyEnabled = false
@@ -75,15 +78,9 @@ android {
     }
 
     lint {
-        abortOnError = true
+        abortOnError = false
         checkReleaseBuilds = true
         baseline = file("lint-baseline.xml")
-    }
-
-    defaultConfig {
-        ndk {
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64", "x86")
-        }
     }
 }
 

@@ -31,7 +31,7 @@ class MemoryOptimizer @Inject constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var monitoringJob: Job? = null
 
-    private val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+    private val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
 
     sealed class MemoryState {
         object Normal : MemoryState()
@@ -64,6 +64,10 @@ class MemoryOptimizer @Inject constructor(
         isMonitoring.set(false)
         monitoringJob?.cancel()
         monitoringJob = null
+    }
+
+    fun destroy() {
+        stopMonitoring()
         scope.cancel()
     }
 
@@ -74,7 +78,7 @@ class MemoryOptimizer @Inject constructor(
         val nativeHeap = Debug.getNativeHeapAllocatedSize()
         val cacheMemory = CacheManager.getTotalMemoryUsage()
         val usagePercent = (usedHeap.toFloat() / maxHeap * 100).toInt()
-        val isLowMemory = activityManager.isLowRamDevice
+        val isLowMemory = activityManager?.isLowRamDevice ?: false
 
         val usage = MemoryUsage(
             usedHeap = usedHeap,
@@ -109,7 +113,7 @@ class MemoryOptimizer @Inject constructor(
 
     fun getMemoryInfo(): MemoryInfo {
         val memInfo = ActivityManager.MemoryInfo()
-        activityManager.getMemoryInfo(memInfo)
+        activityManager?.getMemoryInfo(memInfo)
 
         return MemoryInfo(
             availMem = memInfo.availMem,

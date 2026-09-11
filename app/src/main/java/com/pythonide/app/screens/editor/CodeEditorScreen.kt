@@ -67,7 +67,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -114,17 +114,17 @@ fun CodeEditorScreen(
     viewModel: CodeEditorViewModel = hiltViewModel(),
     debuggerViewModel: DebuggerViewModel = hiltViewModel()
 ) {
-    val editorState by viewModel.editorState.collectAsState()
-    val tabState by viewModel.tabState.collectAsState()
-    val searchState by viewModel.searchState.collectAsState()
-    val cursorInfo by viewModel.cursorInfo.collectAsState()
-    val highlightedLines by viewModel.highlightedLines.collectAsState()
-    val config by viewModel.config.collectAsState()
-    val intelliSenseState by viewModel.intelliSenseState.collectAsState()
+    val editorState by viewModel.editorState.collectAsStateWithLifecycle()
+    val tabState by viewModel.tabState.collectAsStateWithLifecycle()
+    val searchState by viewModel.searchState.collectAsStateWithLifecycle()
+    val cursorInfo by viewModel.cursorInfo.collectAsStateWithLifecycle()
+    val highlightedLines by viewModel.highlightedLines.collectAsStateWithLifecycle()
+    val config by viewModel.config.collectAsStateWithLifecycle()
+    val intelliSenseState by viewModel.intelliSenseState.collectAsStateWithLifecycle()
     
-    val debugState by debuggerViewModel.debugState.collectAsState()
-    val breakpoints by debuggerViewModel.breakpoints.collectAsState()
-    val currentFrame by debuggerViewModel.currentFrame.collectAsState()
+    val debugState by debuggerViewModel.debugState.collectAsStateWithLifecycle()
+    val breakpoints by debuggerViewModel.breakpoints.collectAsStateWithLifecycle()
+    val currentFrame by debuggerViewModel.currentFrame.collectAsStateWithLifecycle()
     
     var showSearch by remember { mutableStateOf(false) }
     var showGoToLine by remember { mutableStateOf(false) }

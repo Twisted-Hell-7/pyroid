@@ -19,7 +19,7 @@ data class Project(
 )
 
 data class ProjectMetadata(
-    val pythonVersion: String = "3.11",
+    val pythonVersion: String = "3.14",
     val interpreterPath: String = "python3",
     val author: String = "",
     val version: String = "1.0.0",
@@ -181,3 +181,12 @@ enum class SaveResult {
     NO_PROJECT,
     READ_ONLY
 }
+
+data class ProjectStats(
+    val totalFiles: Int,
+    val pythonFiles: Int,
+    val totalLines: Int,
+    val totalSize: Long,
+    val lastModified: Long,
+    val dependencies: List<String>
+)

@@ -68,9 +68,10 @@ data class Variable(
     val type: String,
     val value: String,
     val repr: String = value,
-    val children: List<Variable>? = null,
-    val isExpandable: Boolean = children?.isNotEmpty() == true
-)
+    val children: List<Variable>? = null
+) {
+    val isExpandable: Boolean get() = !children.isNullOrEmpty()
+}
 
 // ---------------------------------------------------------------------------
 // Watch expressions
@@ -176,16 +177,16 @@ sealed class DebugEvent {
 /**
  * Commands that can be sent to the running debug agent.
  */
-enum class DebugCommand(val wire: String) {
-    CONTINUE("continue"),
-    STEP_INTO("step_into"),
-    STEP_OVER("step_over"),
-    STEP_OUT("step_out"),
-    STOP("stop"),
-    INSPECT("inspect");
-
+sealed interface DebugCommand {
+    val wire: String
+    data object Continue : DebugCommand { override val wire = "continue" }
+    data object StepInto : DebugCommand { override val wire = "step_into" }
+    data object StepOver : DebugCommand { override val wire = "step_over" }
+    data object StepOut : DebugCommand { override val wire = "step_out" }
+    data object Stop : DebugCommand { override val wire = "stop" }
+    data object Inspect : DebugCommand { override val wire = "inspect" }
     /** Evaluate [expression] in the current frame. */
-    data class Evaluate(val expression: String) {
-        val wire: String get() = "eval ${expression}"
+    data class Evaluate(val expression: String) : DebugCommand {
+        override val wire: String get() = "eval $expression"
     }
 }

@@ -1,5 +1,6 @@
 package com.pythonide.domain.model.filemanager
 
+import com.pythonide.domain.model.project.Project
 import java.util.UUID
 
 data class FileManagerItem(
@@ -100,18 +101,6 @@ enum class FileOperationStatus {
     FAILED,
     CANCELLED
 }
-
-data class Project(
-    val id: String = UUID.randomUUID().toString(),
-    val name: String,
-    val rootPath: String,
-    val description: String = "",
-    val createdAt: Long = System.currentTimeMillis(),
-    val lastAccessedAt: Long = System.currentTimeMillis(),
-    val isFavorite: Boolean = false,
-    val fileCount: Int = 0,
-    val totalSize: Long = 0
-)
 
 data class RecentFile(
     val item: FileManagerItem,

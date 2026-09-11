@@ -28,10 +28,14 @@ class FileRepositoryImpl @Inject constructor(
     }
 
     override suspend fun createFile(name: String, content: String): PythonFile {
+        val safeName = name.trim().take(255)
+            .replace(Regex("[\\\\/:*?\"<>|]"), "_")
+            .ifEmpty { "untitled.py" }
+        val unique = "${UUID.randomUUID().toString().take(8)}_$safeName"
         val file = PythonFile(
             id = UUID.randomUUID().toString(),
-            name = name,
-            path = "/$name",
+            name = safeName,
+            path = "/$unique",
             content = content,
             lastModified = System.currentTimeMillis()
         )

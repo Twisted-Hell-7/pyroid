@@ -25,13 +25,17 @@ data class CursorPosition(
     val column: Int
 ) : Comparable<CursorPosition> {
     fun toOffset(content: String): Int {
-        val lines = content.lines()
-        if (line >= lines.size) return content.length
+        if (content.isEmpty()) return 0
+        // Normalize CRLF so offsets match lines() indexing.
+        val normalized = content.replace("\r\n", "\n").replace('\r', '\n')
+        val lines = normalized.lines()
+        val safeLine = line.coerceIn(0, lines.size - 1)
         var offset = 0
-        for (i in 0 until line) {
+        for (i in 0 until safeLine) {
             offset += lines[i].length + 1
         }
-        return (offset + column).coerceIn(0, content.length)
+        val safeColumn = column.coerceIn(0, lines.getOrNull(safeLine)?.length ?: 0)
+        return (offset + safeColumn).coerceIn(0, normalized.length)
     }
 
     override fun compareTo(other: CursorPosition): Int {
@@ -43,11 +47,14 @@ data class CursorPosition(
 
     companion object {
         fun fromOffset(content: String, offset: Int): CursorPosition {
-            val lines = content.lines()
+            if (content.isEmpty()) return CursorPosition(0, 0)
+            val normalized = content.replace("\r\n", "\n").replace('\r', '\n')
+            val safeOffset = offset.coerceIn(0, normalized.length)
+            val lines = normalized.lines()
             var currentOffset = 0
             for ((index, line) in lines.withIndex()) {
-                if (currentOffset + line.length >= offset) {
-                    return CursorPosition(index, offset - currentOffset)
+                if (currentOffset + line.length >= safeOffset) {
+                    return CursorPosition(index, (safeOffset - currentOffset).coerceIn(0, line.length))
                 }
                 currentOffset += line.length + 1
             }

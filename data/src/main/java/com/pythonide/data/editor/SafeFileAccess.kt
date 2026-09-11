@@ -14,7 +14,7 @@ import javax.inject.Singleton
 @Singleton
 class SafeFileAccess @Inject constructor() {
     private val accessLog = ConcurrentHashMap<String, FileAccessEntry>()
-    private val blockedPaths = mutableSetOf<String>()
+    private val blockedPaths = ConcurrentHashMap.newKeySet<String>()
 
     data class FileAccessEntry(
         val path: String,
@@ -29,18 +29,18 @@ class SafeFileAccess @Inject constructor() {
     }
 
     data class AccessPolicy(
-        val allowedReadPaths: List<String> = listOf(
+        val allowedReadPaths: List<String> = listOfNotNull(
             System.getProperty("user.home"),
             "/tmp",
             "/sdcard/Documents",
             "/sdcard/Download"
-        ),
-        val allowedWritePaths: List<String> = listOf(
+        ).ifEmpty { listOf("/tmp") },
+        val allowedWritePaths: List<String> = listOfNotNull(
             System.getProperty("user.home"),
             "/tmp",
             "/sdcard/Documents",
             "/sdcard/Download"
-        ),
+        ).ifEmpty { listOf("/tmp") },
         val blockedPaths: List<String> = listOf(
             "/etc", "/var", "/usr", "/bin", "/sbin", "/root",
             "/system", "/proc", "/sys", "/data/data"
@@ -50,6 +50,7 @@ class SafeFileAccess @Inject constructor() {
         val allowHiddenFiles: Boolean = false
     )
 
+    @Volatile
     private var policy = AccessPolicy()
 
     suspend fun readFile(path: String): FileResult<String> = withContext(Dispatchers.IO) {
@@ -233,7 +234,11 @@ class SafeFileAccess @Inject constructor() {
             return false
         }
 
-        if (blockedPaths.any { canonicalPath.startsWith(it) }) {
+        fun isWithin(path: String, base: String): Boolean {
+            return path == base || path.startsWith(base + File.separator)
+        }
+
+        if (policy.blockedPaths.any { isWithin(canonicalPath, it) }) {
             return false
         }
 
@@ -243,7 +248,7 @@ class SafeFileAccess @Inject constructor() {
             FileOperation.EXECUTE, FileOperation.LIST -> policy.allowedReadPaths
         }
 
-        return allowedPaths.any { canonicalPath.startsWith(it) }
+        return allowedPaths.any { isWithin(canonicalPath, it) }
     }
 
     private fun deleteDirectoryRecursive(file: File) {

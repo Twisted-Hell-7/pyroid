@@ -329,12 +329,61 @@ class SettingsDataStore @Inject constructor(
                         else -> null
                     }
                     if (prefKey != null) {
-                        when (val value = obj.get(key)) {
-                            is Boolean -> prefs[prefKey as Preferences.Key<Boolean>] = value
-                            is Int -> prefs[prefKey as Preferences.Key<Int>] = value
-                            is Long -> prefs[prefKey as Preferences.Key<Long>] = value
-                            is Float -> prefs[prefKey as Preferences.Key<Float>] = value
-                            is String -> prefs[prefKey as Preferences.Key<String>] = value
+                        // Switch on key type, not JSON value type (JSONObject returns Int/Long/Double).
+                        runCatching {
+                            when (prefKey) {
+                                Keys.THEME_MODE, Keys.FONT_FAMILY, Keys.CONSOLE_FONT_FAMILY -> {
+                                    prefs[prefKey as androidx.datastore.preferences.core.Preferences.Key<String>] =
+                                        obj.getString(key)
+                                }
+                                Keys.DYNAMIC_COLORS, Keys.AMOLED_BLACK, Keys.SHOW_LINE_NUMBERS, Keys.WORD_WRAP,
+                                Keys.HIGHLIGHT_CURRENT_LINE, Keys.AUTO_INDENT, Keys.SMART_INDENT, Keys.AUTO_BRACKETS,
+                                Keys.AUTO_QUOTES, Keys.INDENT_WITH_TABS, Keys.SHOW_WHITESPACE, Keys.SHOW_END_OF_FILE,
+                                Keys.BRACKET_PAIR_COLORIZATION, Keys.MINIMAP, Keys.STICKY_SCROLL,
+                                Keys.SHOW_TIMESTAMPS, Keys.ENABLE_ANSI_COLORS, Keys.AUTO_SCROLL, Keys.CONSOLE_WORD_WRAP,
+                                Keys.AUTO_UPDATE_PACKAGES, Keys.SHOW_PRERELEASE, Keys.VERIFY_SIGNATURES,
+                                Keys.AUTO_BACKUP_ENABLED, Keys.BACKUP_SETTINGS, Keys.BACKUP_PROJECTS, Keys.BACKUP_PACKAGES -> {
+                                    prefs[prefKey as androidx.datastore.preferences.core.Preferences.Key<Boolean>] =
+                                        obj.getBoolean(key)
+                                }
+                                Keys.FONT_SIZE, Keys.LINE_HEIGHT, Keys.CONSOLE_FONT_SIZE, Keys.CACHE_TIMEOUT,
+                                Keys.MAX_CONCURRENT_DOWNLOADS, Keys.AUTO_BACKUP_INTERVAL, Keys.MAX_BACKUPS,
+                                Keys.LAST_BACKUP_TIMESTAMP -> {
+                                    // Accept any numeric representation.
+                                    val num = obj.get(key) as? Number ?: obj.getString(key).toDoubleOrNull()
+                                    if (num != null) {
+                                        // Store as the key's declared type via double/long fallback.
+                                        runCatching {
+                                            prefs[prefKey as androidx.datastore.preferences.core.Preferences.Key<Int>] =
+                                                num.toInt()
+                                        }.onFailure {
+                                            prefs[prefKey as androidx.datastore.preferences.core.Preferences.Key<Long>] =
+                                                num.toLong()
+                                        }
+                                    }
+                                }
+                                Keys.TAB_SIZE, Keys.EDITOR_FONT_SIZE, Keys.MAX_CONSOLE_LINES -> {
+                                    val num = obj.get(key) as? Number
+                                    if (num != null) {
+                                        prefs[prefKey as androidx.datastore.preferences.core.Preferences.Key<Int>] =
+                                            num.toInt()
+                                    } else {
+                                        prefs[prefKey as androidx.datastore.preferences.core.Preferences.Key<Int>] =
+                                            obj.getString(key).toInt()
+                                    }
+                                }
+                                else -> {
+                                    when (val value = obj.get(key)) {
+                                        is Boolean -> prefs[prefKey as androidx.datastore.preferences.core.Preferences.Key<Boolean>] = value
+                                        is Number -> {
+                                            runCatching {
+                                                prefs[prefKey as androidx.datastore.preferences.core.Preferences.Key<Int>] = value.toInt()
+                                            }
+                                        }
+                                        is String -> prefs[prefKey as androidx.datastore.preferences.core.Preferences.Key<String>] = value
+                                    }
+                                }
+                            }
                         }
                     }
                 }
