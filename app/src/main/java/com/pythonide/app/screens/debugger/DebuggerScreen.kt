@@ -1027,7 +1027,7 @@ fun DebuggerScreen(
                 title = { Text(filePath?.substringAfterLast("/") ?: "Debugger") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.filled.Close, contentDescription = "Back")
+                        Icon(Icons.Filled.Close, contentDescription = "Back")
                     }
                 }
             )
